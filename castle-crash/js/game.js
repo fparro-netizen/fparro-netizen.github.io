@@ -162,7 +162,7 @@ function buildPlatform(pf) {
   platformGroup.clear();
   const top = new THREE.Mesh(GEO.box, [MAT.stoneDeco, MAT.stoneDeco, new THREE.MeshStandardMaterial({ map: grassTex, roughness: 1 }), MAT.stoneDeco, MAT.stoneDeco, MAT.stoneDeco]);
   top.scale.set(pf.w, 0.6, pf.d); top.position.set(0, PLATFORM_TOP - 0.3, CENTER_Z); top.receiveShadow = true; platformGroup.add(top);
-  const r = Math.max(pf.w, pf.d) * 0.62;
+  const r = pf.w * 0.49;
   const under = new THREE.Mesh(new THREE.ConeGeometry(r, r * 2.2, 8, 1), new THREE.MeshStandardMaterial({ map: rockTex, roughness: 1, flatShading: true }));
   under.rotation.x = Math.PI; under.scale.z = pf.d / pf.w; under.position.set(0, PLATFORM_TOP - 0.6 - r * 1.1, CENTER_Z); platformGroup.add(under);
   return top;
@@ -273,9 +273,9 @@ function loadLevel(i) {
 }
 function updateHud() {
   if (!game) return;
-  const pct = Math.round(100 * game.off / game.total);
+  const pct = Math.floor(100 * game.off / game.total);
   $('bar-fill').style.width = Math.round(100 * game.progress()) + '%';
-  $('bar-text').textContent = pct + '% of ' + Math.round(game.goal * 100) + '%';
+  $('bar-text').textContent = pct + '% of 100%';
   $('hud-shots').textContent = 'Shots ' + game.shots + '  \u00b7  \u2605\u2605\u2605 in ' + game.level.par;
   $('hud-crowns').textContent = game.bonus.length ? '\u{1F451} ' + game.bonusOff + '/' + game.bonus.length : '';
 }
@@ -329,7 +329,7 @@ function showResult() {
   const s = game.stars;
   $('res-title').textContent = s === 3 ? 'Perfect Smash!' : 'Cleared!';
   [...$('res-stars').children].forEach((el, i) => el.className = i < s ? 'on' : '');
-  $('res-score').textContent = `${game.shots} shot${game.shots > 1 ? 's' : ''}  \u00b7  3 stars in ${game.level.par}  \u00b7  ${Math.round(100 * game.off / game.total)}% cleared`;
+  $('res-score').textContent = `${game.shots} shot${game.shots > 1 ? 's' : ''}  \u00b7  3 stars in ${game.level.par}  \u00b7  ${Math.floor(100 * game.off / game.total)}% cleared`;
   $('res-coins').textContent = `\u{1FA99} +${game.coins} coins` + (game.bonus.length ? `   \u{1F451} ${game.bonusOff}/${game.bonus.length}` : '');
   $('res-next').classList.toggle('hidden', levelIdx >= LEVELS.length - 1);
   show('result');

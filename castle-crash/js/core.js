@@ -124,7 +124,7 @@ export function createGame(RAPIER, level, hooks = {}, opts = {}) {
   const eq = new RAPIER.EventQueue(true);
 
   const g = { RAPIER, level, platform, pieces: [], bonus: [], balls: [], shots: 0, steps: 0, phase: 'play', off: 0, total: 0,
-    bonusOff: 0, wonAt: 0, goal: level.goal || 0.88 };
+    bonusOff: 0, wonAt: 0, goal: 1 };
   g.world = world;
 
   // floating platform
@@ -132,6 +132,7 @@ export function createGame(RAPIER, level, hooks = {}, opts = {}) {
   const pb = world.createRigidBody(pd);
   world.createCollider(RAPIER.ColliderDesc.cuboid(platform.w / 2, 0.3, platform.d / 2).setFriction(0.8).setRestitution(0.05), pb);
 
+  const hw = platform.w / 2 + 0.02, hd = platform.d / 2 + 0.02;
   const byCollider = new Map();
   items.forEach((it, idx) => {
     const M = MATS[it.m];
@@ -202,8 +203,9 @@ export function createGame(RAPIER, level, hooks = {}, opts = {}) {
       for (const list of [g.pieces, g.bonus]) for (const p of list) {
         if (p.gone) continue;
         const b = world.getRigidBody(p.h); if (b.isSleeping()) continue;
-        const y = b.translation().y;
-        if (!p.off && y < PLATFORM_TOP - 0.8) markOff(p, 'fell');
+        const t = b.translation(), y = t.y;
+        // Cleared once the piece's centre drops below the platform top, or leaves the island's footprint (off the edge).
+        if (!p.off && (y < PLATFORM_TOP - 0.05 || Math.abs(t.x) > hw || Math.abs(t.z - CENTER_Z) > hd)) markOff(p, 'fell');
         if (y < -25) removePiece(p);
       }
       for (let i = g.balls.length - 1; i >= 0; i--) {
