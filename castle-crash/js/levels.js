@@ -129,7 +129,7 @@
     ['Twin Stacks', 4, 2], ['The Ledge', 3, 1], ['Pyramid', 3, 1], ['Fortress Gate', 4, 2],
     ['Shelter', 4, 2], ['Over the Wall', 3, 1], ['Rope Bridge', 4, 2], ['Ice Palace', 4, 2],
     ['Floating Gems', 4, 2], ['Castle Walls', 4, 2], ['The Keep', 4, 2], ['Royal Citadel', 4, 2],
-    ['Twin Keeps', 4, 3], ['Stone Ring', 4, 3], ['Sky Throne', 3, 2], ['The Last Crown', 4, 3]
+    ['Twin Keeps', 4, 3], ['Stone Ring', 4, 3], ['Sky Throne', 3, 2], ['The Last Crown', 5, 3]
   ];
   var byName = {};
   ALL.forEach(function (l) { byName[l.name] = l; });

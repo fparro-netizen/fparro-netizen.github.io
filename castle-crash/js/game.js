@@ -137,7 +137,7 @@
     onTarget: function (b, k) { SFX.target(); burst(b.position.x, b.position.y, k === 'gem' ? 'gem' : 'gold', 18); popup(b.position.x, b.position.y - 10, '+500', '#ffe14d'); },
     onHit: function (s, mat) { SFX.hit(s, mat); },
     onLaunch: function () { SFX.launch(); shake = 3; burst(LP.x + Math.cos(cannonAngle * Math.PI / 180) * 30, LP.y - Math.sin(cannonAngle * Math.PI / 180) * 30, 'smoke', 10); },
-    onWin: function (g) { setTimeout(function () { if (g === game) showResult(true); }, 350); },
+    onWin: function (g) { recordWin(g); setTimeout(function () { if (g === game) showResult(true); }, 350); },
     onLose: function (g) { setTimeout(function () { if (g === game) showResult(false); }, 350); }
   };
 
@@ -213,16 +213,17 @@
   $('res-retry').onclick = function () { SFX.click(); loadLevel(levelIdx); };
   $('res-next').onclick = function () { SFX.click(); if (levelIdx < LEVELS.length - 1 && unlocked(levelIdx + 1)) loadLevel(levelIdx + 1); else show('levels'); };
 
+  function recordWin(g) {
+    var i = LEVELS.indexOf(g.level); if (i < 0) return;
+    save.stars[i] = Math.max(save.stars[i] || 0, g.stars || 1);
+    save.best[i] = Math.max(save.best[i] || 0, g.score);
+    save.coins += g.coins || 0;
+    persist();
+  }
   function showResult(won) {
     if (!game) return;
     var stars = won ? game.stars : 0;
-    if (won) {
-      save.stars[levelIdx] = Math.max(save.stars[levelIdx] || 0, stars);
-      save.best[levelIdx] = Math.max(save.best[levelIdx] || 0, game.score);
-      save.coins += game.coins;
-      persist();
-      SFX.win();
-    } else SFX.lose();
+    if (won) SFX.win(); else SFX.lose();
     $('res-title').textContent = won ? (stars === 3 ? 'Perfect Siege!' : 'Castle Cleared!') : 'Out of Cannonballs';
     var ss = $('res-stars').children;
     for (var i = 0; i < 3; i++) ss[i].className = i < stars ? 'on' : '';
