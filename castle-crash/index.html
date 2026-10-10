@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Castle Crash">
 <meta name="theme-color" content="#1d2b53">
-<meta name="description" content="Castle Crash: aim, fire, and topple the castle. A physics puzzle game.">
+<meta name="description" content="Castle Crash 3D: tap to fire and topple the castle. A first-person physics puzzle game.">
 <title>Castle Crash</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -18,17 +18,20 @@
 <body>
 <div id="safe-probe"></div>
 <canvas id="game"></canvas>
+<div id="cross" class="hidden"><i></i></div>
+<div id="popups"></div>
 
 <div id="hud" class="hidden">
   <button id="btn-menu" class="hbtn" aria-label="Levels">&#9776;</button>
   <div id="hud-mid">
     <div id="hud-level">Level 1</div>
-    <div id="hud-balls"></div>
+    <div id="hud-shots">Shots 0</div>
   </div>
   <button id="btn-restart" class="hbtn" aria-label="Restart">&#8635;</button>
   <button id="btn-sound" class="hbtn" aria-label="Sound">&#128266;</button>
 </div>
-<div id="hint" class="hidden">Drag back from the cannon to aim, release to fire</div>
+<div id="hud-targets-wrap"><div id="hud-targets"></div></div>
+<div id="hint" class="hidden">Tap the castle to fire. Hold and drag to aim, release to fire.</div>
 
 <div id="title" class="screen">
   <div class="logo"><span>CASTLE</span><span>CRASH</span></div>
@@ -56,15 +59,12 @@
     <div id="res-coins"></div>
     <div class="row">
       <button id="res-levels" class="mid alt" aria-label="Levels">&#9776;</button>
-      <button id="res-retry" class="mid alt" aria-label="Retry">&#8635;</button>
+      <button id="res-retry" class="mid alt" aria-label="Replay">&#8635;</button>
       <button id="res-next" class="mid">Next &#9654;</button>
     </div>
   </div>
 </div>
-
-<script src="js/matter.min.js"></script>
-<script src="js/core.js"></script>
-<script src="js/levels.js"></script>
-<script src="js/game.js"></script>
+<noscript>Castle Crash needs JavaScript.</noscript>
+<script type="module" src="js/game.js"></script>
 </body>
 </html>

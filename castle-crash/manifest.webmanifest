@@ -1,7 +1,7 @@
 {
   "name": "Castle Crash",
   "short_name": "Castle Crash",
-  "description": "Aim, fire, and topple the castle. A physics puzzle game.",
+  "description": "Tap to fire and topple the castle. A first-person 3D physics puzzle game.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
