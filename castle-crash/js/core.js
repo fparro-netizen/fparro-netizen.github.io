@@ -1,193 +1,250 @@
-// Castle Crash 3D - shared physics + rules (no rendering). Works in browser and Node.
-export const CAMERA = { x: 0, y: 2.5, z: 4 };
-export const MUZZLE = { x: 0, y: 2.0, z: 3.2 };
-export const BALL_R = 0.26;
-export const BALL_SPEED = 30;
+// Castle Crash - shared physics + rules (Rapier). No rendering. Works in browser and Node.
+export const CAMERA = { x: 0, y: 3.0, z: 6.5 };
+export const MUZZLE = { x: 0, y: 2.4, z: 5.6 };
+export const LOOK = { x: 0, y: 1.6, z: -5 };
+export const BALL_R = 0.3;
+export const BALL_SPEED = 34;
+export const BALL_DENSITY = 2600;
 export const MAX_BALLS = 4;
-export const G = 9.82;
-const SUB = 1 / 120;
-const GRACE = 90; // substeps with no damage while things settle
+export const G = 9.81;
+export const DT = 1 / 60;
+export const PLATFORM_TOP = 0;
+export const CENTER_Z = -5;
 
 export const MATS = {
-  ice:   { density: 650,  hp: 35,  score: 50,  friction: 0.25 },
-  wood:  { density: 600,  hp: 70,  score: 100, friction: 0.6 },
-  stone: { density: 1800, hp: 160, score: 200, friction: 0.7 },
-  target:{ density: 500,  hp: 22,  score: 500, friction: 0.6 }
+  wood:  { density: 600,  friction: 0.6,  restitution: 0.12 },
+  stone: { density: 1900, friction: 0.75, restitution: 0.05 },
+  ice:   { density: 900,  friction: 0.12, restitution: 0.08, shatterG: 55 },
+  gold:  { density: 800,  friction: 0.6,  restitution: 0.1 }
 };
+export const PALETTE = ['#ff4d4d', '#ff9f1c', '#ffd23f', '#3ccf6e', '#1fb5c9', '#3d7dff', '#9b5de5', '#ff5fa2'];
+const STONES = ['#8e94a3', '#a3a9b6', '#7b8190'];
+const ICES = ['#bfeeff', '#a6e4ff', '#d8f6ff'];
 
-// ---------- level builder (meters; y = bottom of piece) ----------
+// ---------- builder (y = bottom of piece) ----------
 export class Builder {
-  constructor() { this.items = []; }
-  box(m, x, y, z, w, h, d) { this.items.push({ t: 'block', m, x, y: y + h / 2, z, w, h, d }); return y + h; }
-  crate(m, x, y, z, s = 0.7) { return this.box(m, x, y, z, s, s, s); }
-  stack(m, x, y, z, n, s = 0.7) { for (let i = 0; i < n; i++) y = this.crate(Array.isArray(m) ? m[i % m.length] : m, x, y, z, s); return y; }
-  // 4 posts + a slab; returns top y
-  frame(m, x, y, z, w = 1.4, h = 1.2, d = 1.4, slabM) {
-    const p = 0.22;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.box(m, x + sx * (w / 2 - p / 2), y, z + sz * (d / 2 - p / 2), p, h, p);
-    return this.box(slabM || m, x, y + h, z, w + 0.1, 0.2, d + 0.1);
+  constructor() { this.items = []; this.ci = 0; this.platform = { w: 4.6, d: 3.2 }; }
+  color(m, c) {
+    if (c) return c;
+    if (m === 'stone') return STONES[this.ci++ % STONES.length];
+    if (m === 'ice') return ICES[this.ci++ % ICES.length];
+    return PALETTE[this.ci++ % PALETTE.length];
   }
-  tower(m, x, y, z, floors, w = 1.4, h = 1.1, d) {
-    for (let i = 0; i < floors; i++) y = this.frame(Array.isArray(m) ? m[i % m.length] : m, x, y, z, w, h, d || w);
-    return y;
-  }
-  // brick wall facing the camera, centered at x, width in bricks
-  wall(m, x, y, z, cols, rows, bw = 0.8, bh = 0.4, bd = 0.45) {
+  box(m, x, y, z, w, h, d, c, rotY = 0) { this.items.push({ shape: 'box', m, x, y: y + h / 2, z, sx: w, sy: h, sz: d, c: this.color(m, c), rotY }); return y + h; }
+  cyl(m, x, y, z, r, h, c) { this.items.push({ shape: 'cyl', m, x, y: y + h / 2, z, sx: r * 2, sy: h, sz: r * 2, c: this.color(m, c) }); return y + h; }
+  sphere(m, x, y, z, r, c) { this.items.push({ shape: 'sphere', m, x, y: y + r, z, sx: r * 2, sy: r * 2, sz: r * 2, c: this.color(m, c) }); return y + 2 * r; }
+  crown(x, y, z) { this.items.push({ shape: 'crown', m: 'gold', x, y: y + 0.17, z, sx: 0.4, sy: 0.34, sz: 0.4, c: '#ffc928', bonus: true }); }
+  // staggered brick wall facing the camera
+  wall(m, cx, y, z, cols, rows, bw = 0.6, bh = 0.3, bd = 0.4, mats) {
     for (let r = 0; r < rows; r++) {
-      const off = r % 2 ? bw / 2 : 0, n = r % 2 ? cols - 1 : cols;
-      for (let c = 0; c < n; c++) this.box(Array.isArray(m) ? m[r % m.length] : m, x - (cols * bw) / 2 + bw / 2 + off + c * bw, y + r * bh, z, bw * 0.98, bh, bd);
+      const mm = mats ? mats[r % mats.length] : m;
+      if (r % 2 === 0) for (let c = 0; c < cols; c++) this.box(mm, cx + (c - (cols - 1) / 2) * bw, y + r * bh, z, bw * 0.98, bh, bd);
+      else {
+        this.box(mm, cx - (cols * bw) / 2 + bw / 4, y + r * bh, z, bw / 2 * 0.96, bh, bd);
+        for (let c = 0; c < cols - 1; c++) this.box(mm, cx + (c - (cols - 2) / 2) * bw, y + r * bh, z, bw * 0.98, bh, bd);
+        this.box(mm, cx + (cols * bw) / 2 - bw / 4, y + r * bh, z, bw / 2 * 0.96, bh, bd);
+      }
     }
     return y + rows * bh;
   }
-  plank(m, x, y, z, w, d) { return this.box(m, x, y, z, w, 0.2, d); }
-  pillar(x, y, z, w, h, d) { this.items.push({ t: 'static', x, y: y + h / 2, z, w, h, d: d || w }); return y + h; }
-  crown(x, y, z) { this.items.push({ t: 'target', k: 'crown', x, y: y + 0.2, z }); }
-  gem(x, y, z) { this.items.push({ t: 'target', k: 'gem', x, y: y + 0.21, z }); }
-}
-
-export function buildItems(level) { const b = new Builder(); level.build(b); return b.items; }
-
-export function ballisticVelocity(target, speed = BALL_SPEED) {
-  const dx = target.x - MUZZLE.x, dy = target.y - MUZZLE.y, dz = target.z - MUZZLE.z;
-  const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
-  const t = dist / speed;
-  return { x: dx / t, y: dy / t + 0.5 * G * t, z: dz / t };
-}
-
-export function createGame(CANNON, level, hooks = {}) {
-  const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -G, 0) });
-  world.allowSleep = true;
-  world.broadphase = new CANNON.SAPBroadphase(world);
-  world.solver.iterations = 12;
-  world.solver.tolerance = 1e-4;
-  world.defaultContactMaterial.friction = 0.6;
-  world.defaultContactMaterial.restitution = 0.02;
-  world.defaultContactMaterial.contactEquationStiffness = 5e7;
-  world.defaultContactMaterial.contactEquationRelaxation = 3;
-  world.defaultContactMaterial.frictionEquationStiffness = 5e7;
-
-  const g = { world, level, shots: 0, score: 0, phase: 'play', steps: 0, blocks: [], targets: [], statics: [], balls: [],
-    targetsLeft: 0, damageDealt: 0, blocksBroken: 0, wonAt: 0 };
-
-  const ground = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
-  ground.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-  ground.cc = { kind: 'ground' };
-  world.addBody(ground);
-  g.ground = ground;
-
-  buildItems(level).forEach((it, idx) => {
-    let body;
-    if (it.t === 'static') {
-      body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(it.w / 2, it.h / 2, it.d / 2)) });
-      body.cc = { kind: 'static', w: it.w, h: it.h, d: it.d };
-      g.statics.push(body);
-    } else if (it.t === 'block') {
-      const M = MATS[it.m];
-      body = new CANNON.Body({ mass: M.density * it.w * it.h * it.d, shape: new CANNON.Box(new CANNON.Vec3(it.w / 2, it.h / 2, it.d / 2)) });
-      body.cc = { kind: 'block', mat: it.m, hp: M.hp, maxHp: M.hp, w: it.w, h: it.h, d: it.d, seed: idx };
-      g.blocks.push(body);
-    } else {
-      const M = MATS.target;
-      const he = it.k === 'crown' ? new CANNON.Vec3(0.24, 0.2, 0.24) : new CANNON.Vec3(0.21, 0.21, 0.21);
-      body = new CANNON.Body({ mass: M.density * 8 * he.x * he.y * he.z, shape: new CANNON.Box(he) });
-      body.cc = { kind: 'target', k: it.k, hp: M.hp, maxHp: M.hp, home: { x: it.x, y: it.y, z: it.z } };
-      g.targets.push(body);
+  // flat (camera-facing) pyramid of cubes
+  pyramid(m, cx, y, z, n, s = 0.45, mats) {
+    for (let r = 0; r < n; r++) for (let i = 0; i < n - r; i++) this.box(mats ? mats[r % mats.length] : m, cx + (i - (n - r - 1) / 2) * s, y + r * s, z, s * 0.98, s, s * 0.98);
+    return y + n * s;
+  }
+  // square stepped pyramid
+  pyramid3(m, cx, y, z, n, s = 0.45, mats) {
+    for (let r = 0; r < n; r++) { const k = n - r; for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) this.box(mats ? mats[r % mats.length] : m, cx + (i - (k - 1) / 2) * s, y + r * s, z + (j - (k - 1) / 2) * s, s * 0.98, s, s * 0.98); }
+    return y + n * s;
+  }
+  // alternating cube / cylinder column
+  column(m, x, y, z, n, s = 0.4, mats) {
+    for (let i = 0; i < n; i++) { const mm = mats ? mats[i % mats.length] : m; y = i % 2 ? this.cyl(mm, x, y, z, s * 0.5, s) : this.box(mm, x, y, z, s, s, s); }
+    return y;
+  }
+  // jenga-style tower: layers of 3 planks alternating direction
+  jenga(m, cx, y, z, layers, L = 1.05, t = 0.33, h = 0.2, mats) {
+    for (let l = 0; l < layers; l++) {
+      const mm = mats ? mats[l % mats.length] : m;
+      for (let k = -1; k <= 1; k++) {
+        if (l % 2 === 0) this.box(mm, cx + k * t * 1.02, y, z, t, h, L);
+        else this.box(mm, cx, y, z + k * t * 1.02, L, h, t);
+      }
+      y += h;
     }
-    body.position.set(it.x, it.y, it.z);
-    body.linearDamping = 0.02; body.angularDamping = 0.05;
-    body.allowSleep = true; body.sleepSpeedLimit = 0.12; body.sleepTimeLimit = 0.4;
-    body.addEventListener('collide', onCollide);
-    world.addBody(body);
+    return y;
+  }
+  // tiered tower: 4 cylinder legs + slab per tier
+  tiers(m, cx, y, z, n, w = 1.0, legH = 0.5, mats) {
+    for (let i = 0; i < n; i++) {
+      const mm = mats ? mats[i % mats.length] : m, o = w / 2 - 0.12;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) this.box(mm, cx + sx * o, y, z + sz * o, 0.2, legH, 0.2);
+      y = this.box(mm, cx, y + legH, z, w, 0.14, w);
+    }
+    return y;
+  }
+  // shelf unit: posts + planks, each shelf holding small items
+  shelf(m, cx, y, z, tiers, w = 2.2, gap = 0.55, items = 5, itemM = 'wood') {
+    for (let t = 0; t < tiers; t++) {
+      this.box(m, cx - w / 2 + 0.08, y, z, 0.16, gap, 0.5); this.box(m, cx + w / 2 - 0.08, y, z, 0.16, gap, 0.5);
+      y = this.box(m, cx, y + gap, z, w, 0.12, 0.55);
+      for (let i = 0; i < items; i++) {
+        const x = cx + (i - (items - 1) / 2) * ((w - 0.3) / items);
+        if (i % 3 === 1) this.cyl(itemM, x, y, z, 0.13, 0.36); else if (i % 3 === 2 && t % 2) this.cyl(itemM, x, y, z, 0.15, 0.24); else this.box(itemM, x, y, z, 0.26, 0.3, 0.26);
+      }
+      // items are only on the tier just built; the next tier's posts sit on the plank ends
+    }
+    return y;
+  }
+}
+
+export function buildLevel(level) { const b = new Builder(); level.build(b); return { items: b.items, platform: { ...b.platform, ...(level.platform || {}) } }; }
+
+export function ballisticVelocity(t, speed = BALL_SPEED) {
+  const dx = t.x - MUZZLE.x, dy = t.y - MUZZLE.y, dz = t.z - MUZZLE.z;
+  const dist = Math.hypot(dx, dy, dz) || 1, time = dist / speed;
+  return { x: dx / time, y: dy / time + 0.5 * G * time, z: dz / time };
+}
+
+const prismCache = new Map();
+function prism(r, hh, n) {
+  const key = r + ':' + hh; if (prismCache.has(key)) return prismCache.get(key);
+  const pts = new Float32Array(n * 6);
+  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, x = Math.cos(a) * r, z = Math.sin(a) * r; pts.set([x, -hh, z, x, hh, z], i * 6); }
+  prismCache.set(key, pts); return pts;
+}
+function quatY(a) { return { x: 0, y: Math.sin(a / 2), z: 0, w: Math.cos(a / 2) }; }
+
+export function createGame(RAPIER, level, hooks = {}, opts = {}) {
+  const { items, platform } = buildLevel(level);
+  let world = new RAPIER.World({ x: 0, y: -G, z: 0 });
+  world.timestep = DT;
+  world.numSolverIterations = 8;
+  world.numAdditionalFrictionIterations = 4;
+  const eq = new RAPIER.EventQueue(true);
+
+  const g = { RAPIER, level, platform, pieces: [], bonus: [], balls: [], shots: 0, steps: 0, phase: 'play', off: 0, total: 0,
+    bonusOff: 0, wonAt: 0, goal: level.goal || 0.88 };
+  g.world = world;
+
+  // floating platform
+  const pd = RAPIER.RigidBodyDesc.fixed().setTranslation(0, PLATFORM_TOP - 0.3, CENTER_Z);
+  const pb = world.createRigidBody(pd);
+  world.createCollider(RAPIER.ColliderDesc.cuboid(platform.w / 2, 0.3, platform.d / 2).setFriction(0.8).setRestitution(0.05), pb);
+
+  const byCollider = new Map();
+  items.forEach((it, idx) => {
+    const M = MATS[it.m];
+    const bd = RAPIER.RigidBodyDesc.dynamic().setTranslation(it.x, it.y, CENTER_Z + it.z).setCanSleep(true)
+      .setLinearDamping(0.05).setAngularDamping(0.12);
+    if (it.rotY) bd.setRotation(quatY(it.rotY));
+    const body = world.createRigidBody(bd);
+    let cd;
+    if (it.shape === 'box') cd = RAPIER.ColliderDesc.cuboid(it.sx / 2, it.sy / 2, it.sz / 2);
+    else if (it.shape === 'sphere') cd = RAPIER.ColliderDesc.ball(it.sx / 2);
+    else cd = RAPIER.ColliderDesc.cylinder(it.sy / 2, it.sx / 2); // cylinders + crowns
+    cd.setDensity(M.density).setFriction(M.friction).setRestitution(M.restitution);
+    const col = world.createCollider(cd, body);
+    const mass = body.mass();
+    col.setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS);
+    col.setContactForceEventThreshold(mass * G * 22);
+    const p = { idx, h: body.handle, ch: col.handle, shape: it.shape, m: it.m, sx: it.sx, sy: it.sy, sz: it.sz, c: it.c, mass, off: false, gone: false, bonus: !!it.bonus };
+    byCollider.set(col.handle, p);
+    (p.bonus ? g.bonus : g.pieces).push(p);
   });
-  g.targetsLeft = g.targets.length;
+  g.total = g.pieces.length;
+  g.body = (p) => world.getRigidBody(p.h);
 
-  const pending = new Map();
-  function onCollide(e) {
-    if (g.steps < GRACE) return;
-    const a = e.target, b = e.body;
-    if (!a.cc || a.cc.dead) return;
-    if (a.cc.kind === 'target' && b.cc && b.cc.kind === 'ground') { pending.set(a.id, Infinity); return; }
-    const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
-    if (v < 1.2) return;
-    const ma = a.mass, mb = b.mass || Infinity;
-    const mu = mb === Infinity ? ma : (ma * mb) / (ma + mb);
-    const spec = (0.5 * mu * v * v) / ma; // J per kg of this body
-    const prev = pending.get(a.id) || 0;
-    if (spec > prev) pending.set(a.id, spec);
-    if (hooks.onHit && spec > 8 && (b.cc && b.cc.kind === 'ball')) hooks.onHit(Math.min(1, spec / 200), a.cc.mat || 'target');
+  function markOff(p, why) {
+    if (p.off) return;
+    p.off = true;
+    if (p.bonus) { g.bonusOff++; hooks.onBonus && hooks.onBonus(p); }
+    else { g.off++; hooks.onOff && hooks.onOff(p, why); }
   }
-
-  function wakeAll() { for (const b of world.bodies) if (b.mass > 0) b.wakeUp(); }
-
-  function removeBody(b, why) {
-    if (b.cc.dead) return;
-    b.cc.dead = true;
-    world.removeBody(b);
-    if (b.cc.kind === 'block') { g.blocksBroken++; g.score += MATS[b.cc.mat].score; hooks.onBreak && hooks.onBreak(b, b.cc.mat); }
-    else if (b.cc.kind === 'target') { g.targetsLeft--; g.score += MATS.target.score; hooks.onTarget && hooks.onTarget(b, b.cc.k, why); }
-    wakeAll();
+  function removePiece(p) {
+    if (p.gone) return;
+    p.gone = true;
+    const b = world.getRigidBody(p.h); if (b) world.removeRigidBody(b);
+    hooks.onRemove && hooks.onRemove(p);
   }
-  g.removeBody = removeBody;
+  function wakeAll() { world.forEachRigidBody(b => { if (b.isDynamic()) b.wakeUp(); }); }
 
-  g.fireAt = function (p) {
+  g.fireAt = function (t) {
     if (g.phase !== 'play') return null;
-    const v = ballisticVelocity(p);
-    const ball = new CANNON.Body({ mass: 140, shape: new CANNON.Sphere(BALL_R), linearDamping: 0, angularDamping: 0.1 });
-    ball.position.set(MUZZLE.x, MUZZLE.y, MUZZLE.z);
-    ball.velocity.set(v.x, v.y, v.z);
-    ball.allowSleep = true; ball.sleepSpeedLimit = 0.2; ball.sleepTimeLimit = 0.5;
-    ball.cc = { kind: 'ball', born: g.steps };
-    world.addBody(ball);
+    const v = ballisticVelocity(t);
+    const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(MUZZLE.x, MUZZLE.y, MUZZLE.z).setLinvel(v.x, v.y, v.z).setCcdEnabled(true).setCanSleep(true).setAngularDamping(0.2));
+    world.createCollider(RAPIER.ColliderDesc.ball(BALL_R).setDensity(BALL_DENSITY).setFriction(0.5).setRestitution(0.2)
+      .setActiveEvents(RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS).setContactForceEventThreshold(40000), body);
+    const ball = { h: body.handle, born: g.steps, gone: false };
     g.balls.push(ball);
-    while (g.balls.length > MAX_BALLS) { const old = g.balls.shift(); world.removeBody(old); old.cc.dead = true; hooks.onBallRemoved && hooks.onBallRemoved(old); }
+    while (g.balls.length > MAX_BALLS) { const o = g.balls.shift(); const ob = world.getRigidBody(o.h); if (ob) world.removeRigidBody(ob); o.gone = true; hooks.onBallRemoved && hooks.onBallRemoved(o); }
     g.shots++;
     hooks.onFire && hooks.onFire(ball);
     return ball;
   };
 
-  g.substep = function () {
-    world.step(SUB);
+  g.step = function () {
+    world.step(eq);
     g.steps++;
-    if (pending.size) {
-      for (const [id, spec] of pending) {
-        const b = g.blocks.find(x => x.id === id) || g.targets.find(x => x.id === id);
-        if (!b || b.cc.dead) continue;
-        if (spec === Infinity) { removeBody(b, 'ground'); continue; }
-        const dmg = spec - 4;
-        if (dmg > 0) { b.cc.hp -= dmg; g.damageDealt += dmg; if (b.cc.hp <= 0) removeBody(b, 'broken'); }
+    const live = g.steps > 30;
+    eq.drainContactForceEvents(ev => {
+      if (!live) return;
+      const f = ev.maxForceMagnitude();
+      for (const ch of [ev.collider1(), ev.collider2()]) {
+        const p = byCollider.get(ch);
+        if (!p || p.gone) continue;
+        const gs = f / (p.mass * G);
+        if (p.m === 'ice' && gs > MATS.ice.shatterG) { markOff(p, 'shatter'); removePiece(p); hooks.onShatter && hooks.onShatter(p); wakeAll(); continue; }
+        hooks.onImpact && hooks.onImpact(p, gs);
       }
-      pending.clear();
-    }
-    if (g.steps % 12 === 0) {
-      for (const b of g.blocks) if (!b.cc.dead && b.position.y < -8) removeBody(b, 'fell');
-      for (const b of g.targets) if (!b.cc.dead && (b.position.y < -3 || Math.abs(b.position.x) > 30 || b.position.z < -60)) removeBody(b, 'fell');
+    });
+    if (g.steps % 6 === 0) {
+      for (const list of [g.pieces, g.bonus]) for (const p of list) {
+        if (p.gone) continue;
+        const b = world.getRigidBody(p.h); if (b.isSleeping()) continue;
+        const y = b.translation().y;
+        if (!p.off && y < PLATFORM_TOP - 0.8) markOff(p, 'fell');
+        if (y < -25) removePiece(p);
+      }
       for (let i = g.balls.length - 1; i >= 0; i--) {
-        const ball = g.balls[i];
-        if (ball.position.y < -8 || g.steps - ball.cc.born > 120 * 8) { world.removeBody(ball); ball.cc.dead = true; g.balls.splice(i, 1); hooks.onBallRemoved && hooks.onBallRemoved(ball); }
+        const o = g.balls[i], b = world.getRigidBody(o.h);
+        if (!b) continue;
+        if (b.translation().y < -25 || g.steps - o.born > 60 * 7) { world.removeRigidBody(b); o.gone = true; g.balls.splice(i, 1); hooks.onBallRemoved && hooks.onBallRemoved(o); }
       }
     }
-    if (g.phase === 'play' && g.targetsLeft <= 0) { g.phase = 'winning'; g.wonAt = g.steps; }
-    if (g.phase === 'winning' && g.steps - g.wonAt > 150) {
+    if (g.phase === 'play' && g.off / g.total >= g.goal) { g.phase = 'winning'; g.wonAt = g.steps; }
+    if (g.phase === 'winning' && g.steps - g.wonAt > 75) {
       g.phase = 'won';
       const par = level.par;
       g.stars = g.shots <= par ? 3 : g.shots <= par + 2 ? 2 : 1;
-      g.coins = g.stars * 10 + Math.max(0, par + 2 - g.shots) * 5;
-      g.score += Math.max(0, par + 3 - g.shots) * 1000;
+      g.coins = g.stars * 10 + g.bonusOff * 5 + Math.max(0, par + 2 - g.shots) * 5;
+      g.score = g.off * 100 + g.bonusOff * 500 + Math.max(0, par + 3 - g.shots) * 1000;
       hooks.onWin && hooks.onWin(g);
     }
   };
-  g.frame = function () { g.substep(); g.substep(); };
+  g.progress = () => Math.min(1, g.off / g.total / g.goal);
 
   g.isQuiet = function () {
-    for (const b of world.bodies) {
-      if (b.mass === 0 || b.sleepState === 2) continue;
-      if (b.velocity.lengthSquared() > 0.05 || b.angularVelocity.lengthSquared() > 0.05) return false;
-    }
-    return true;
+    let quiet = true;
+    world.forEachRigidBody(b => { if (quiet && b.isDynamic() && !b.isSleeping()) { const v = b.linvel(); if (v.x * v.x + v.y * v.y + v.z * v.z > 0.04) quiet = false; } });
+    return quiet;
   };
-  // run (headless) until things settle or a time limit
-  g.settle = function (maxFrames = 300, minFrames = 30) {
-    for (let i = 0; i < maxFrames; i++) { g.frame(); if (i > minFrames && g.isQuiet()) break; }
+  g.settle = function (max = 240, min = 20) { for (let i = 0; i < max; i++) { g.step(); if (i > min && g.isQuiet()) break; } };
+
+  // snapshots for the solver (world + rules state)
+  g.snapshot = () => ({ bytes: world.takeSnapshot(), state: JSON.stringify({ p: g.pieces.map(p => [p.off, p.gone]), b: g.bonus.map(p => [p.off, p.gone]), balls: g.balls, shots: g.shots, steps: g.steps, phase: g.phase, off: g.off, bonusOff: g.bonusOff, wonAt: g.wonAt }) });
+  g.restore = (s) => {
+    world.free();
+    world = RAPIER.World.restoreSnapshot(s.bytes); g.world = world;
+    const st = JSON.parse(s.state);
+    g.pieces.forEach((p, i) => { p.off = st.p[i][0]; p.gone = st.p[i][1]; });
+    g.bonus.forEach((p, i) => { p.off = st.b[i][0]; p.gone = st.b[i][1]; });
+    Object.assign(g, { balls: st.balls, shots: st.shots, steps: st.steps, phase: st.phase, off: st.off, bonusOff: st.bonusOff, wonAt: st.wonAt });
   };
+  g.positions = () => g.pieces.map(p => { if (p.gone) return null; const t = world.getRigidBody(p.h).translation(); return { x: t.x, y: t.y, z: t.z }; });
+  g.free = () => world.free();
+
+  // let the stacks settle before play (they then sleep and do not jitter)
+  if (opts.presettle !== false) { for (let i = 0; i < 45; i++) g.step(); g.steps = 0; }
   return g;
 }

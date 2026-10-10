@@ -1,119 +1,116 @@
-// Castle Crash 3D - 24 hand-built levels. Units are meters, ground is y=0, the player stands at z=+9 looking toward -z.
-// par = shots for 3 stars (tuned with test/sim3.mjs)
-const Z = -8;
+// Castle Crash - 24 levels of stacked, layered structures on a floating platform.
+// Coordinates: meters, y = bottom of a piece, z is relative to the platform center (negative = farther away).
+// goal = fraction of pieces to knock off the platform; par = shots for 3 stars (tuned with test/sim4.mjs).
 export default [
-  { name: 'First Shot', par: 1, build(b) { const y = b.stack('wood', 0, 0, Z, 2); b.crown(0, y, Z); } },
-  { name: 'Watchtower', par: 1, build(b) { const y = b.tower('wood', 0, 0, Z, 2); b.crown(0, y, Z); } },
-  { name: 'Wooden Gate', par: 1, build(b) {
-    b.box('wood', -1.1, 0, Z, 0.35, 1.6, 0.5); b.box('wood', 1.1, 0, Z, 0.35, 1.6, 0.5);
-    const y = b.box('wood', 0, 1.6, Z, 2.8, 0.3, 0.6); b.crown(0, y, Z);
+  { name: 'Brick Wall', goal: 0.85, par: 4, platform: { w: 4.4, d: 2.2 }, build(b) {
+    b.wall('wood', 0, 0, 0, 6, 7, 0.6, 0.3, 0.4); b.crown(0, 2.1, 0);
   } },
-  { name: 'Ice Wall', par: 2, build(b) {
-    b.wall('ice', 0, 0, Z + 1.5, 4, 3);
-    const y = b.stack('wood', 0, 0, Z - 0.5, 2); b.crown(0, y, Z - 0.5);
+  { name: 'Pyramid', goal: 0.85, par: 4, platform: { w: 4.6, d: 2.2 }, build(b) {
+    b.pyramid('wood', 0, 0, 0, 9, 0.45); b.crown(0, 4.05, 0);
   } },
-  { name: 'Twin Stacks', par: 2, build(b) {
-    let y = b.stack('wood', -1.5, 0, Z, 2); b.crown(-1.5, y, Z);
-    y = b.stack('wood', 1.5, 0, Z, 3); b.crown(1.5, y, Z);
+  { name: 'Twin Columns', goal: 0.85, par: 4, platform: { w: 4.4, d: 2.4 }, build(b) {
+    b.wall('wood', 0, 0, 0.5, 6, 4, 0.6, 0.3, 0.35);
+    let y = b.column('wood', -1.2, 0, -0.4, 8, 0.45); b.crown(-1.2, y, -0.4);
+    y = b.column('wood', 1.2, 0, -0.4, 8, 0.45); b.crown(1.2, y, -0.4);
   } },
-  { name: 'The Hut', par: 2, build(b) {
-    b.plank('wood', 0, 0, Z, 0.6, 0.6); b.gem(0, 0.2, Z);
-    b.box('wood', 0, 0, Z + 0.9, 2.0, 1.2, 0.2); b.box('wood', 0, 0, Z - 0.9, 2.0, 1.2, 0.2);
-    b.box('wood', -0.9, 0, Z, 0.2, 1.2, 1.6); b.box('wood', 0.9, 0, Z, 0.2, 1.2, 1.6);
-    b.box('wood', 0, 1.2, Z, 2.3, 0.2, 2.3);
+  { name: 'Jenga Pair', goal: 0.85, par: 4, platform: { w: 4.4, d: 2.6 }, build(b) {
+    let y = b.jenga('wood', -0.9, 0, 0, 9); b.crown(-0.9, y, 0);
+    y = b.jenga('wood', 0.9, 0, 0, 9); b.crown(0.9, y, 0);
   } },
-  { name: 'Stone Footing', par: 2, build(b) {
-    let y = b.frame('stone', -0.8, 0, Z, 1.6, 1.0); y = b.frame('wood', -0.8, y, Z, 1.3, 1.0); b.crown(-0.8, y, Z);
-    y = b.stack('wood', 1.8, 0, Z, 2); b.crown(1.8, y, Z);
+  { name: 'The Shelf', goal: 0.85, par: 4, platform: { w: 4.6, d: 2.4 }, build(b) {
+    b.shelf('wood', 0, 0, 0, 4, 2.2, 0.55, 5);
+    b.column('stone', -1.85, 0, 0, 8, 0.4); b.column('stone', 1.85, 0, 0, 8, 0.4);
   } },
-  { name: 'High Tower', par: 2, build(b) { const y = b.tower(['stone', 'wood', 'wood', 'ice', 'wood'], 0, 0, Z, 5, 1.4, 0.9); b.crown(0, y, Z); } },
-  { name: 'Dominoes', par: 5, build(b) {
-    for (let i = 0; i < 6; i++) b.box('wood', 0, 0, Z + 2.5 - i * 0.9, 1.2, 1.8, 0.2);
-    const y = b.crate('stone', 0, 0, Z - 3.2, 0.7); b.crown(0, y, Z - 3.2);
+  { name: 'Double Wall', goal: 0.85, par: 5, platform: { w: 4.6, d: 2.8 }, build(b) {
+    b.wall('ice', 0, 0, 0.8, 6, 5, 0.6, 0.3, 0.35);
+    const y = b.wall('wood', 0, 0, -0.5, 6, 6, 0.6, 0.3, 0.4); b.crown(0, y, -0.5);
   } },
-  { name: 'The Ledge', par: 2, build(b) {
-    b.wall('ice', 0, 0, Z + 1.5, 3, 4);
-    let y = b.pillar(1.2, 0, Z - 1, 1.2, 2.2); y = b.crate('wood', 1.2, y, Z - 1, 0.6); b.crown(1.2, y, Z - 1);
-    y = b.pillar(-1.4, 0, Z - 1.5, 1.0, 1.2); b.gem(-1.4, y, Z - 1.5);
+  { name: 'Step Pyramid', goal: 0.85, par: 8, platform: { w: 4.6, d: 3.4 }, build(b) {
+    const y = b.pyramid3('wood', 0, 0, 0, 5, 0.42, ['stone', 'wood', 'wood', 'wood', 'wood']); b.crown(0, y, 0);
+    for (const [x, z] of [[-1.7, -1.1], [1.7, -1.1], [-1.7, 1.1], [1.7, 1.1]]) b.column('wood', x, 0, z, 3, 0.36);
   } },
-  { name: 'Pyramid', par: 2, build(b) {
-    const s = 0.7; let y = 0;
-    [4, 3, 2, 1].forEach((n, r) => { for (let i = 0; i < n; i++) b.crate(r % 2 ? 'wood' : 'stone', (i - (n - 1) / 2) * s, y, Z, s); y += s; });
-    b.gem(0, y, Z);
+  { name: 'Pagoda', goal: 0.85, par: 4, platform: { w: 4.6, d: 2.8 }, build(b) {
+    let y = b.tiers('wood', 0, 0, -0.3, 6, 1.0, 0.45); b.crown(0, y, -0.3);
+    b.wall('wood', 0, 0, 0.9, 6, 6, 0.6, 0.3, 0.35);
   } },
-  { name: 'Fortress Gate', par: 3, build(b) {
-    b.wall('stone', -1.6, 0, Z + 1.2, 2, 5); b.wall('stone', 1.6, 0, Z + 1.2, 2, 5);
-    let y = b.frame('wood', 0, 0, Z - 0.8, 1.4, 1.2); y = b.frame('wood', 0, y, Z - 0.8, 1.2, 1.0); b.crown(0, y, Z - 0.8);
-    b.plank('wood', 0, 0, Z - 0.8, 0.6, 0.6); b.gem(0, 0.2, Z - 0.8);
+  { name: 'Great Wall', goal: 0.87, par: 5, platform: { w: 5.2, d: 2.2 }, build(b) {
+    const y = b.wall('wood', 0, 0, 0, 8, 10, 0.6, 0.3, 0.42, ['wood', 'wood', 'stone']); b.crown(-1.2, y, 0); b.crown(1.2, y, 0);
   } },
-  { name: 'Shelter', par: 3, build(b) {
-    b.pillar(-2.3, 0, Z, 0.5, 2.2); b.pillar(2.3, 0, Z, 0.5, 2.2); b.pillar(0, 2.2, Z, 5.1, 0.35, 2.0);
-    let y = b.stack('ice', -1.1, 0, Z, 2, 0.6); b.crown(-1.1, y, Z);
-    y = b.stack('wood', 1.1, 0, Z, 2, 0.6); b.crown(1.1, y, Z);
+  { name: 'Three Pagodas', goal: 0.87, par: 4, platform: { w: 5.0, d: 2.8 }, build(b) {
+    for (const x of [-1.6, 0, 1.6]) { const y = b.tiers('wood', x, 0, x === 0 ? -0.5 : 0, x === 0 ? 7 : 5, 0.9, 0.42); b.crown(x, y, x === 0 ? -0.5 : 0); }
+    b.wall('wood', 0, 0, 1.0, 7, 4, 0.6, 0.3, 0.3);
   } },
-  { name: 'Window', par: 3, build(b) {
-    b.pillar(-1.75, 0, Z + 1, 2.0, 3.2, 0.5); b.pillar(1.75, 0, Z + 1, 2.0, 3.2, 0.5);
-    b.pillar(0, 0, Z + 1, 1.5, 1.2, 0.5); b.pillar(0, 2.4, Z + 1, 1.5, 0.8, 0.5);
-    let y = b.frame('wood', 0, 0, Z - 1, 1.2, 1.3); y = b.crate('ice', 0, y, Z - 1, 0.6); b.crown(0, y, Z - 1);
+  { name: 'Fortress', goal: 0.87, par: 5, platform: { w: 5.0, d: 3.0 }, build(b) {
+    b.wall('stone', 0, 0, 1.0, 7, 6, 0.6, 0.3, 0.4, ['stone', 'wood']);
+    let y = b.jenga('wood', -1.2, 0, -0.6, 8); b.crown(-1.2, y, -0.6);
+    y = b.jenga('wood', 1.2, 0, -0.6, 8); b.crown(1.2, y, -0.6);
   } },
-  { name: 'Rope Bridge', par: 3, build(b) {
-    b.pillar(-2.0, 0, Z, 0.8, 2.0); b.pillar(2.0, 0, Z, 0.8, 2.0);
-    let y = b.plank('wood', 0, 2.0, Z, 4.6, 1.0);
-    y = b.crate('ice', 0, y, Z, 0.6); b.crown(0, y, Z);
-    b.crown(-2.0, 2.0, Z); b.gem(2.0, 2.0, Z);
+  { name: 'Ziggurat', goal: 0.87, par: 9, platform: { w: 4.8, d: 3.6 }, build(b) {
+    let y = b.pyramid3('stone', 0, 0, 0, 5, 0.46, ['stone', 'stone', 'wood', 'wood', 'wood']);
+    y = b.column('wood', 0, y, 0, 6, 0.38); b.crown(0, y, 0);
+    for (const x of [-2.0, 2.0]) b.column('wood', x, 0, 0, 8, 0.36);
   } },
-  { name: 'Ice Palace', par: 3, build(b) {
-    let y = b.tower('ice', -1.8, 0, Z, 2, 1.1, 1.0); b.crown(-1.8, y, Z);
-    y = b.tower('ice', 0, 0, Z - 1, 3, 1.1, 1.0); b.crown(0, y, Z - 1);
-    y = b.tower('ice', 1.8, 0, Z, 2, 1.1, 1.0); b.crown(1.8, y, Z);
+  { name: 'Library', goal: 0.88, par: 3, platform: { w: 5.2, d: 2.6 }, build(b) {
+    b.shelf('wood', -1.25, 0, 0, 5, 2.3, 0.5, 6); b.shelf('stone', 1.25, 0, 0, 5, 2.3, 0.5, 6, 'wood');
   } },
-  { name: 'Floating Gems', par: 3, build(b) {
-    let y = b.pillar(-1.8, 0, Z, 0.7, 3.0); y = b.box('wood', -1.8, y, Z, 0.25, 0.6, 0.25); b.gem(-1.8, y, Z);
-    y = b.pillar(0, 0, Z - 2, 0.7, 1.8); y = b.box('wood', 0, y, Z - 2, 0.25, 0.6, 0.25); b.gem(0, y, Z - 2);
-    y = b.pillar(1.8, 0, Z + 1, 0.7, 0.8); y = b.box('wood', 1.8, y, Z + 1, 0.25, 0.6, 0.25); b.gem(1.8, y, Z + 1);
+  { name: 'Ice Castle', goal: 0.88, par: 7, platform: { w: 5.0, d: 3.2 }, build(b) {
+    b.wall('ice', 0, 0, 1.1, 7, 6, 0.6, 0.3, 0.35);
+    for (const x of [-1.7, 1.7]) { const y = b.column('ice', x, 0, -0.3, 7, 0.45); b.crown(x, y, -0.3); }
+    const y = b.jenga('ice', 0, 0, -0.5, 9); b.crown(0, y, -0.5);
   } },
-  { name: 'Castle Walls', par: 4, build(b) {
-    let y = b.tower(['stone', 'wood'], -2, 0, Z, 2, 1.2, 1.0); b.crown(-2, y, Z);
-    y = b.tower(['stone', 'wood'], 2, 0, Z, 2, 1.2, 1.0); b.crown(2, y, Z);
-    b.wall('stone', 0, 0, Z + 0.8, 3, 3);
-    b.plank('wood', 0, 0, Z - 0.3, 0.6, 0.6); b.gem(0, 0.2, Z - 0.3);
+  { name: 'Grand Pyramid', goal: 0.88, par: 4, platform: { w: 6.0, d: 2.4 }, build(b) {
+    const y = b.pyramid('wood', 0, 0, 0, 13, 0.4, ['stone', 'wood', 'wood']); b.crown(0, y, 0);
+    for (const x of [-2.75, 2.75]) b.column('wood', x, 0, 0, 7, 0.4);
   } },
-  { name: 'The Keep', par: 4, build(b) {
-    b.wall('stone', 0, 0, Z + 1.1, 4, 4); b.wall('stone', 0, 0, Z - 1.1, 4, 4);
-    b.box('stone', -1.4, 0, Z, 0.4, 1.6, 1.8); b.box('stone', 1.4, 0, Z, 0.4, 1.6, 1.8);
-    b.plank('wood', 0, 0, Z, 0.6, 0.6); b.crown(0, 0.2, Z);
-    const y = b.box('wood', 0, 1.6, Z, 3.4, 0.25, 2.8); b.crown(0, y, Z);
+  { name: 'Skyscrapers', goal: 0.88, par: 7, platform: { w: 5.0, d: 3.0 }, build(b) {
+    let y = b.jenga('wood', -1.1, 0, -0.3, 15); b.crown(-1.1, y, -0.3);
+    y = b.jenga('wood', 1.1, 0, -0.3, 15, 1.05, 0.33, 0.2, ['wood', 'stone']); b.crown(1.1, y, -0.3);
+    b.wall('wood', 0, 0, 1.0, 7, 3, 0.6, 0.3, 0.3);
   } },
-  { name: 'Royal Citadel', par: 4, build(b) {
-    b.wall('stone', 0, 0, Z + 2, 4, 2);
-    let y = b.tower(['stone', 'wood'], -1.2, 0, Z, 2, 1.3, 1.1); b.crown(-1.2, y, Z);
-    y = b.tower(['stone', 'wood', 'ice'], 1.2, 0, Z - 0.5, 3, 1.3, 1.0); b.crown(1.2, y, Z - 0.5);
-    b.plank('wood', 0, 0, Z + 0.8, 0.6, 0.6); b.gem(0, 0.2, Z + 0.8);
+  { name: 'Colonnade', goal: 0.9, par: 5, platform: { w: 5.2, d: 3.0 }, build(b) {
+    const xs = [-2.0, -1.0, 0, 1.0, 2.0];
+    for (const x of xs) b.column('stone', x, 0, 0, 6, 0.4, ['stone', 'wood']);
+    let y = 6 * 0.4;
+    for (let i = 0; i < 4; i++) b.box('wood', -1.5 + i, y, 0, 1.1, 0.16, 0.5);
+    y += 0.16;
+    for (const x of xs) b.column('wood', x, y, 0, 5, 0.36);
+    b.wall('wood', 0, 0, 1.0, 8, 4, 0.6, 0.3, 0.3);
+    b.crown(0, y + 5 * 0.36, 0);
   } },
-  { name: 'Twin Keeps', par: 5, build(b) {
-    for (const x of [-1.6, 1.6]) {
-      let y = b.frame('stone', x, 0, Z, 1.5, 1.1); b.plank('wood', x, 0, Z, 0.5, 0.5); b.gem(x, 0.2, Z);
-      y = b.frame('stone', x, y, Z, 1.3, 1.0); b.crown(x, y, Z);
-    }
-    b.wall('stone', 0, 0, Z + 1.6, 3, 2);
+  { name: 'Castle Keep', goal: 0.9, par: 9, platform: { w: 5.0, d: 3.8 }, build(b) {
+    b.wall('stone', 0, 0, 1.2, 7, 6, 0.6, 0.3, 0.4, ['stone', 'wood']);
+    b.wall('stone', 0, 0, -1.2, 7, 6, 0.6, 0.3, 0.4, ['stone', 'wood']);
+    for (const x of [-2.05, 2.05]) for (let r = 0; r < 6; r++) for (let k = -1; k <= 1; k++) b.box(r % 2 ? 'wood' : 'stone', x, r * 0.3, k * 0.6, 0.4, 0.3, 0.58);
+    const y = b.tiers('wood', 0, 0, 0, 5, 0.9, 0.45); b.crown(0, y, 0);
   } },
-  { name: 'Stone Ring', par: 5, build(b) {
-    b.wall('stone', 0, 0, Z + 1.2, 4, 4); b.wall('stone', 0, 0, Z - 1.2, 4, 4);
-    b.box('stone', -1.4, 0, Z, 0.45, 1.6, 2.0); b.box('stone', 1.4, 0, Z, 0.45, 1.6, 2.0);
-    const y = b.stack('stone', 0, 0, Z, 2, 0.7); b.crown(0, y, Z);
-    b.plank('wood', -0.75, 0, Z + 0.5, 0.5, 0.5); b.gem(-0.75, 0.2, Z + 0.5);
+  { name: 'Stone Heart', goal: 0.9, par: 10, platform: { w: 5.0, d: 3.2 }, build(b) {
+    let y = b.pyramid3('stone', 0, 0, 0, 4, 0.5); b.crown(0, y, 0);
+    b.wall('wood', 0, 0, 1.1, 8, 5, 0.6, 0.3, 0.3);
+    for (const x of [-1.9, 1.9]) { y = b.jenga('wood', x, 0, -0.3, 9, 0.9, 0.28, 0.2); b.crown(x, y, -0.3); }
   } },
-  { name: 'Sky Throne', par: 5, build(b) {
-    b.wall('stone', 0, 0, Z + 2.2, 4, 3);
-    let y = b.pillar(0, 0, Z - 1.5, 1.4, 3.2); y = b.frame('stone', 0, y, Z - 1.5, 1.2, 0.9); b.crown(0, y, Z - 1.5);
-    y = b.stack('stone', -1.8, 0, Z, 2, 0.6); b.gem(-1.8, y, Z);
-    y = b.stack('stone', 1.8, 0, Z, 2, 0.6); b.gem(1.8, y, Z);
+  { name: 'Twin Pyramids', goal: 0.9, par: 10, platform: { w: 5.4, d: 3.4 }, build(b) {
+    for (const x of [-1.35, 1.35]) { const y = b.pyramid3('wood', x, 0, -0.3, 5, 0.42, ['stone', 'wood']); b.crown(x, y, -0.3); }
+    for (let i = 0; i < 12; i++) b.cyl('wood', -2.2 + i * 0.4, 0, 1.25, 0.15, 0.5);
+    for (let i = 0; i < 11; i++) b.box('wood', -2.0 + i * 0.4, 0.5, 1.25, 0.36, 0.2, 0.36);
   } },
-  { name: 'The Last Crown', par: 7, build(b) {
-    b.wall('stone', 0, 0, Z + 2.2, 5, 4);
-    let y = b.tower(['stone', 'stone', 'wood'], -2.2, 0, Z, 3, 1.2, 1.0); b.crown(-2.2, y, Z);
-    y = b.tower(['stone', 'stone', 'wood'], 2.2, 0, Z, 3, 1.2, 1.0); b.crown(2.2, y, Z);
-    y = b.pillar(0, 0, Z - 1.5, 1.6, 2.4); y = b.frame('stone', 0, y, Z - 1.5, 1.4, 1.0); y = b.frame('wood', 0, y, Z - 1.5, 1.2, 0.9); b.crown(0, y, Z - 1.5);
-    b.plank('stone', 0, 0, Z, 0.6, 0.6); b.gem(0, 0.2, Z);
+  { name: 'Market Stalls', goal: 0.9, par: 7, platform: { w: 5.6, d: 3.4 }, build(b) {
+    b.shelf('wood', -1.75, 0, 0.6, 4, 1.9, 0.5, 5); b.shelf('wood', 1.75, 0, 0.6, 4, 1.9, 0.5, 5);
+    b.shelf('stone', 0, 0, -0.8, 6, 2.0, 0.48, 5, 'ice');
+  } },
+  { name: 'The Great Wall', goal: 0.9, par: 5, platform: { w: 6.0, d: 2.6 }, build(b) {
+    const y = b.wall('stone', 0, 0, 0, 9, 13, 0.6, 0.3, 0.45, ['stone', 'wood', 'wood']);
+    for (const x of [-2.1, -0.7, 0.7, 2.1]) { const t = b.column('wood', x, y, 0, 4, 0.36); b.crown(x, t, 0); }
+  } },
+  { name: 'Citadel', goal: 0.9, par: 12, platform: { w: 5.6, d: 3.8 }, build(b) {
+    b.wall('stone', 0, 0, 1.3, 8, 6, 0.6, 0.3, 0.4, ['stone', 'wood']);
+    for (const x of [-1.9, 1.9]) { const y = b.jenga('wood', x, 0, -0.2, 9, 0.9, 0.28, 0.2, ['wood', 'stone']); b.crown(x, y, -0.2); }
+    const y = b.pyramid3('wood', 0, 0, -0.6, 4, 0.42, ['stone', 'wood']); const t = b.tiers('wood', 0, y, -0.6, 3, 0.7, 0.4); b.crown(0, t, -0.6);
+  } },
+  { name: 'The Last Crown', goal: 0.9, par: 13, platform: { w: 6.0, d: 4.0 }, build(b) {
+    b.wall('stone', 0, 0, 1.4, 9, 6, 0.6, 0.3, 0.4, ['stone', 'ice']);
+    for (const x of [-2.2, 2.2]) { const y = b.column('stone', x, 0, -0.4, 7, 0.45, ['stone', 'wood']); b.crown(x, y, -0.4); }
+    let y = b.pyramid3('stone', 0, 0, -0.5, 4, 0.48, ['stone', 'wood']);
+    y = b.jenga('wood', 0, y, -0.5, 8, 0.9, 0.28, 0.2); b.crown(0, y, -0.5);
+    b.shelf('wood', 0, 0, -1.6, 2, 3.4, 0.45, 7);
   } }
 ];
