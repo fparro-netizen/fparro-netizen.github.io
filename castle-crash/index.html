@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Castle Crash">
 <meta name="theme-color" content="#1d2b53">
-<meta name="description" content="Castle Crash 3D: tap to fire and topple the castle. A first-person physics puzzle game.">
+<meta name="description" content="Castle Crash: tap to fire and smash towering stacks off a floating island. A first-person physics puzzle game.">
 <title>Castle Crash</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -30,8 +30,8 @@
   <button id="btn-restart" class="hbtn" aria-label="Restart">&#8635;</button>
   <button id="btn-sound" class="hbtn" aria-label="Sound">&#128266;</button>
 </div>
-<div id="hud-targets-wrap"><div id="hud-targets"></div></div>
-<div id="hint" class="hidden">Tap the castle to fire. Hold and drag to aim, release to fire.</div>
+<div id="progress" class="hidden"><div id="bar"><div id="bar-fill"></div></div><div id="bar-row"><span id="bar-text">0%</span><span id="hud-crowns"></span></div></div>
+<div id="hint" class="hidden">Tap to fire. Knock the pieces off the island! Hold and drag to aim.</div>
 
 <div id="title" class="screen">
   <div class="logo"><span>CASTLE</span><span>CRASH</span></div>
@@ -64,6 +64,7 @@
     </div>
   </div>
 </div>
+<div id="loading">Loading…</div>
 <noscript>Castle Crash needs JavaScript.</noscript>
 <script type="module" src="js/game.js"></script>
 </body>

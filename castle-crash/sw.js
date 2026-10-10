@@ -1,7 +1,7 @@
-/* Castle Crash 3D service worker: cache-first offline play. Bump CACHE on every release. */
-var CACHE = 'castle-crash-3d-v1';
+/* Castle Crash service worker: cache-first offline play. Bump CACHE on every release. */
+var CACHE = 'castle-crash-stack-v1';
 var ASSETS = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/game.js', 'js/core.js', 'js/levels.js',
-  'js/lib/three.module.js', 'js/lib/cannon-es.js', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+  'js/lib/three.module.js', 'js/lib/rapier.js', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ASSETS.map(function (u) { return new Request(u, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
 });
