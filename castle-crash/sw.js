@@ -1,5 +1,6 @@
 /* Castle Crash service worker: cache-first offline play. Bump CACHE on every release. */
-var CACHE = 'castle-crash-stack-v1';
+var PREFIX = 'castle-crash-';
+var CACHE = PREFIX + 'stack-v2';
 var ASSETS = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/game.js', 'js/core.js', 'js/levels.js',
   'js/lib/three.module.js', 'js/lib/rapier.js', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', function (e) {
@@ -7,7 +8,8 @@ self.addEventListener('install', function (e) {
 });
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
-    var old = keys.filter(function (k) { return k !== CACHE; });
+    // only remove Castle Crash's own older caches; other games on this origin (e.g. /bus-jam/) keep theirs
+    var old = keys.filter(function (k) { return k.indexOf(PREFIX) === 0 && k !== CACHE; });
     return Promise.all(old.map(function (k) { return caches.delete(k); })).then(function () { return old.length > 0; });
   }).then(function (upgraded) {
     return self.clients.claim().then(function () {
@@ -21,10 +23,10 @@ self.addEventListener('activate', function (e) {
 });
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(function (hit) {
+  e.respondWith(caches.open(CACHE).then(function (c) { return c.match(e.request, { ignoreSearch: true }); }).then(function (hit) {
     return hit || fetch(e.request).then(function (res) {
       if (res && res.ok && new URL(e.request.url).origin === location.origin) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(e.request, copy); }); }
       return res;
-    }).catch(function () { return caches.match('index.html'); });
+    }).catch(function () { return caches.open(CACHE).then(function (c) { return c.match('index.html'); }); });
   }));
 });
