@@ -51,12 +51,13 @@ const Sound = (() => {
     unlock: ensure,
     go() { tone(90, 230, 0.3, 'sawtooth', 0.1); tone(180, 440, 0.24, 'triangle', 0.1); },
     honk() { tone(370, 360, 0.12, 'square', 0.1); tone(370, 360, 0.16, 'square', 0.1, 0.15); },
-    board(n) { const c = ensure(); if (!c || c.currentTime - lastBoard < 0.05) return; lastBoard = c.currentTime; tone(520 + (n % 10) * 45, 700 + (n % 10) * 50, 0.07, 'triangle', 0.12); },
+    board(n) { const c = ensure(); if (!c || c.currentTime - lastBoard < 0.05) return; lastBoard = c.currentTime; const f = [523, 587, 659, 784, 880][Math.floor(n / 4) % 5]; tone(f, f * 1.01, 0.09, 'sine', 0.11); tone(f * 2, f * 2, 0.05, 'triangle', 0.03); },
     full() { [660, 880, 1100].forEach((f, i) => tone(f, f * 1.02, 0.14, 'triangle', 0.16, i * 0.07)); },
     depart() { noise(0.45, 300, 1200, 0.1); },
+    park() { tone(330, 300, 0.1, 'sine', 0.12); tone(495, 470, 0.12, 'sine', 0.08, 0.05); },
     reveal() { tone(600, 1200, 0.15, 'sine', 0.12); },
     shuffle() { noise(0.5, 400, 3000, 0.18); [500, 700, 900, 1200].forEach((f, i) => tone(f, f, 0.08, 'sine', 0.1, i * 0.06)); },
-    win() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, f, 0.22, 'triangle', 0.18, i * 0.1)); },
+    win() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, f, 0.22, 'triangle', 0.16, i * 0.1)); [523, 659, 784].forEach(f => tone(f, f, 0.9, 'sine', 0.08, 0.55)); },
     stuck() { tone(300, 180, 0.4, 'sine', 0.18); },
     click() { tone(800, 600, 0.05, 'sine', 0.08); },
   };
@@ -78,6 +79,8 @@ const lam = (hex, extra) => { const k = hex + (extra ? JSON.stringify(extra) : '
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const tmpM = new THREE.Matrix4(), tmpM2 = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3(), tmpP = new THREE.Vector3(), tmpC = new THREE.Color(), YAX = new THREE.Vector3(0, 1, 0);
 const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+const easeOut = t => t <= 0 ? 0 : t >= 1 ? 1 : 1 - Math.pow(1 - t, 3);                 // quick start, soft landing
+const easeInOut = t => t <= 0 ? 0 : t >= 1 ? 1 : 0.5 - 0.5 * Math.cos(Math.PI * t);   // gentle both ends
 
 function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
 
@@ -337,7 +340,7 @@ function playEvents(events) {
       const path = exitPath(e.vid, e.spot); const T = path.len / SPEED + 0.3;
       vis.spot = e.spot; vis.filled = 0; vis.lastBoard = now + T;
       vis.mode = 'drive'; vis.path = path; vis.t0 = now; vis.T = T; Sound.go();
-      at(now + T, () => { vis.mode = 'parked'; vis.x = sx(e.spot); vis.z = parkZ(e.vid); vis.rot = 0; vis.s = PS; vis.squash = now; setBadge(e.spot, C.seatsOf(state, e.vid) - vis.filled, C.COLORS[state.colors[e.vid]]); });
+      at(now + T, () => { vis.mode = 'parked'; vis.x = sx(e.spot); vis.z = parkZ(e.vid); vis.rot = 0; vis.s = PS; vis.squash = now; Sound.park(); setBadge(e.spot, C.seatsOf(state, e.vid) - vis.filled, C.COLORS[state.colors[e.vid]]); });
     } else if (e.type === 'board') {
       const p = ringVis[e.slot]; ringVis[e.slot] = null;
       const from = p ? [p.x, p.z] : slotPos(e.slot); const door = [sx(e.spot), SPOT_N + 0.05];
@@ -398,8 +401,8 @@ function update(dt) {
     } else if (vis.mode === 'depart') {
       const t = now - vis.t0, x0 = sx(vis.spot), z0 = parkZ(vis.vid), z1 = ROAD_Z;
       s = PS;
-      if (t < 0.5) { const k = ease(t / 0.5); x = x0; z = z0 + (z1 - z0) * k; rot = 0; }
-      else { const k = (t - 0.5) / 0.9; rot = -Math.PI / 2 * ease((t - 0.5) / 0.22); x = x0 + (k * k * 0.5 + k * 0.5) * 16; z = z1; if (now - vis.dustT > 0.03) { vis.dustT = now; spawnDust(x, z, rot, s); } if (k >= 1) { vis.mode = 'gone'; continue; } }
+      if (t < 0.5) { const k = easeInOut(t / 0.5); x = x0; z = z0 + (z1 - z0) * k; rot = 0; }
+      else { const k = (t - 0.5) / 0.9; rot = -Math.PI / 2 * easeOut((t - 0.5) / 0.3); x = x0 + (k * k * 0.6 + k * 0.4) * 16; z = z1; if (now - vis.dustT > 0.03) { vis.dustT = now; spawnDust(x, z, rot, s); } if (k >= 1) { vis.mode = 'gone'; continue; } }
     } else if (vis.mode === 'waitDrive') { /* stays in the lot until its spot clears */ }
     else if (vis.mode === 'lot') {
       const bk = (now - vis.bump) / 0.24;
@@ -438,9 +441,9 @@ function update(dt) {
   for (let slot = 0; slot < ringVis.length; slot++) {
     const p = ringVis[slot]; if (!p) continue;
     let [x, z] = slotPos(slot, ph);
-    const mk = (now - p.mt0) / 0.35; if (mk < 1 && p.from) { const e = ease(mk); x = p.from[0] + (x - p.from[0]) * e; z = p.from[1] + (z - p.from[1]) * e; }
+    let hop = 0; const mk = (now - p.mt0) / 0.35; if (mk < 1 && p.from) { const e = easeOut(mk); x = p.from[0] + (x - p.from[0]) * e; z = p.from[1] + (z - p.from[1]) * e; hop = Math.sin(Math.PI * Math.max(0, mk)) * 0.14; }
     p.x = x; p.z = z;
-    if (n < MAXP) setPerson(n++, x, Math.abs(Math.sin(now * 13 + slot * 0.7)) * 0.05, z, p.color, 1);
+    if (n < MAXP) setPerson(n++, x, hop || Math.abs(Math.sin(now * 13 + slot * 0.7)) * 0.05, z, p.color, 1);
   }
   for (let a = 0; a < 2; a++) { const line = streamVis[a]; const lim = Math.min(line.length, SVIS[a] + 10);
     for (let k = 0; k < lim; k++) {
@@ -451,10 +454,10 @@ function update(dt) {
       setPerson(n++, p.x, moving ? Math.abs(Math.sin(now * 14 + k * 0.9)) * 0.05 : 0, p.z, p.color, p.s);
     } }
   for (const w of walkers) {
-    const k = Math.min(1, (now - w.t0) / w.T); const segs = w.pts; let L = 0; const ls = []; for (let i = 1; i < segs.length; i++) { const l = Math.hypot(segs[i][0] - segs[i - 1][0], segs[i][1] - segs[i - 1][1]); ls.push(l); L += l; }
+    const k = easeInOut(Math.min(1, (now - w.t0) / w.T)); const segs = w.pts; let L = 0; const ls = []; for (let i = 1; i < segs.length; i++) { const l = Math.hypot(segs[i][0] - segs[i - 1][0], segs[i][1] - segs[i - 1][1]); ls.push(l); L += l; }
     let d = L * k, i = 0; while (i < ls.length - 1 && d > ls[i]) { d -= ls[i]; i++; } const f = ls[i] ? Math.min(1, d / ls[i]) : 1;
     const x = segs[i][0] + (segs[i + 1][0] - segs[i][0]) * f, z = segs[i][1] + (segs[i + 1][1] - segs[i][1]) * f;
-    const bob = Math.abs(Math.sin(now * 16 + w.t0 * 7)) * 0.06; const s = k > 0.85 ? 0.4 + (1 - k) * 4 : 1;
+    const bob = Math.abs(Math.sin(now * 16 + w.t0 * 7)) * 0.06; const s = k > 0.8 ? 1 - 0.65 * easeInOut((k - 0.8) / 0.2) : 1;
     if (n < MAXP) setPerson(n++, x, bob, z, w.p.color, s);
   }
   peopleBody.count = n; peopleHead.count = n;

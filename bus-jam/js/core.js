@@ -72,7 +72,7 @@ export function newState(level) {
     inLot: level.vehicles.map(() => true),
     colors: level.vehicles.map(v => v.color),
     ring: Int8Array.from(level.ring),  // slot = row*LANES_N + lane, -1 = empty; row r sits at cell (r + rot) % rows
-    rot: 0, tick: 0,
+    rot: 0, tick: 0, gapOwner: new Int8Array(RING.rows).fill(-1), colRows: new Array(COLORS.length).fill(0),
     streams: [level.streams[0].slice(), level.streams[1].slice()],
     qi: [0, 0],
     parked: new Array(SPOTS).fill(null), // {vid, filled, ready (tick), full, freeAt}
@@ -83,7 +83,7 @@ export const ringCount = s => { let n = 0; for (const c of s.ring) if (c >= 0) n
 export const streamLeft = (s, a) => s.streams[a].length - s.qi[a];
 export const waiting = s => ringCount(s) + streamLeft(s, 0) + streamLeft(s, 1);
 export function snapshot(s) {
-  return { inLot: s.inLot.slice(), colors: s.colors.slice(), ring: Int8Array.from(s.ring), rot: s.rot, streams: [s.streams[0].slice(), s.streams[1].slice()], qi: s.qi.slice(),
+  return { inLot: s.inLot.slice(), colors: s.colors.slice(), ring: Int8Array.from(s.ring), rot: s.rot, streams: [s.streams[0].slice(), s.streams[1].slice()], qi: s.qi.slice(), gapOwner: Int8Array.from(s.gapOwner), colRows: s.colRows.slice(),
     parked: s.parked.map(p => p && !p.full ? { vid: p.vid, filled: p.filled } : null), moves: s.moves };
 }
 export function restore(s, snap) {
@@ -91,7 +91,9 @@ export function restore(s, snap) {
   // keep the ring's current rotation so it doesn't jump: put each rider back into the same ring cell it was in
   const d = ((s.rot - snap.rot) % RING.rows + RING.rows) % RING.rows; const ring = new Int8Array(CAP).fill(-1);
   for (let r = 0; r < RING.rows; r++) for (let l = 0; l < LANES_N; l++) ring[r * LANES_N + l] = snap.ring[((r + d) % RING.rows) * LANES_N + l];
-  s.ring = ring;
+  s.ring = ring; const go = new Int8Array(RING.rows).fill(-1);
+  for (let r = 0; r < RING.rows; r++) go[r] = snap.gapOwner[(r + d) % RING.rows];
+  s.gapOwner = go; s.colRows = snap.colRows.slice();
   s.parked = snap.parked.map(p => p && { vid: p.vid, filled: p.filled, ready: 0, full: false, freeAt: 0 }); s.moves = snap.moves;
 }
 
@@ -124,8 +126,13 @@ export function tap(s, vid, ready = s.tick) {
   return { ok: true, events: [{ type: 'exit', vid, spot }] };
 }
 
-// stream merge rule: the longer stream goes first (ties: the right stream). Timing-independent, so the solver knows the order.
-const mergeTurn = (l0, l1) => (l1 > 0 && l1 >= l0) ? 1 : l0 > 0 ? 0 : -1;
+// stream merge rule (v7): both streams feed at once. Every ring row that empties is given an OWNER stream when its riders
+// board: the n-th row of colour c to board belongs to stream (n + c) % 2, so the two streams share the gaps about evenly.
+// An empty row is filled the moment it passes its owner's join point; if the owner has run dry, the first join it reaches
+// whose stream still has riders fills it instead. Streams only ever shrink, so how many rows each stream gives depends only
+// on how many gaps each side owned, never on timing: the solver's macro model below knows the result exactly.
+export const ownerOf = (c, n) => (n + c) % 2;
+const mergeTurn = (l0, l1, i) => (l0 > 0 && l1 > 0) ? (i & 1) : l1 > 0 ? 1 : l0 > 0 ? 0 : -1; // shuffle planning only
 
 // One tick: the ring advances one row, riders board at the spots they pass, gaps at the join points fill from the streams.
 export function step(s) {
@@ -140,6 +147,7 @@ export function step(s) {
     let all = true; for (let l = 0; l < LANES_N; l++) if (s.ring[r * LANES_N + l] !== c) { all = false; break; }
     if (!all) continue;
     p.filled += ROW; s.boards += ROW; s.rowBoards = (s.rowBoards || 0) + 1;
+    s.gapOwner[r] = ownerOf(c, s.colRows[c]++);
     for (let l = 0; l < LANES_N; l++) { const slot = r * LANES_N + l; s.ring[slot] = -1; ev.push({ type: 'board', spot: k, vid: p.vid, slot, color: c, filled: p.filled, lane: l }); }
     if (p.filled >= seats) { p.full = true; p.freeAt = s.tick + DEPART_TICKS; ev.push({ type: 'depart', vid: p.vid, spot: k }); }
   }
@@ -147,7 +155,9 @@ export function step(s) {
     const r = ((JOIN_CELL[a] - s.rot) % rows + rows) % rows;
     // a whole row of 4 steps into a completely empty ring row
     let empty = true; for (let l = 0; l < LANES_N; l++) if (s.ring[r * LANES_N + l] !== -1) { empty = false; break; }
-    if (!empty || mergeTurn(streamLeft(s, 0), streamLeft(s, 1)) !== a) continue;
+    if (!empty || streamLeft(s, a) < ROW) continue;
+    const o = s.gapOwner[r]; if (o >= 0 && o !== a && streamLeft(s, o) >= ROW) continue; // owner still has riders: leave it
+    s.gapOwner[r] = -1;
     for (let l = 0; l < LANES_N; l++) {
       const slot = r * LANES_N + l; const c = s.streams[a][s.qi[a]]; s.ring[slot] = c; ev.push({ type: 'merge', arm: a, idx: s.qi[a], slot, color: c }); s.qi[a]++; s.merges++;
     }
@@ -169,7 +179,8 @@ export function isStuck(s) {
 // ---------- macro model (exact settle-point of the micro simulation, used by the solver and generator) ----------
 export function toMacro(s) {
   const cnt = new Array(COLORS.length).fill(0); for (const c of s.ring) if (c >= 0) cnt[c]++;
-  const m = { level: s.level, inLot: s.inLot.slice(), colors: s.colors, cnt, streams: s.streams, qi: s.qi.slice(), parked: s.parked.map(p => p && !p.full ? { vid: p.vid, filled: p.filled } : null) };
+  const gap = [0, 0]; for (let r = 0; r < RING.rows; r++) { let e = true; for (let l = 0; l < LANES_N; l++) if (s.ring[r * LANES_N + l] >= 0) e = false; if (e) gap[s.gapOwner[r] === 0 ? 0 : 1]++; }
+  const m = { level: s.level, inLot: s.inLot.slice(), colors: s.colors, cnt, gap, colRows: s.colRows.slice(), streams: s.streams, qi: s.qi.slice(), parked: s.parked.map(p => p && !p.full ? { vid: p.vid, filled: p.filled } : null) };
   settle(m); return m;
 }
 export function settle(m) {
@@ -177,21 +188,19 @@ export function settle(m) {
     let changed = false;
     for (let k = 0; k < SPOTS; k++) {
       const p = m.parked[k]; if (!p) continue; const c = m.colors[p.vid], seats = m.level.vehicles[p.vid].seats;
-      const t = Math.min(seats - p.filled, m.cnt[c]); if (t > 0) { m.cnt[c] -= t; p.filled += t; changed = true; }
+      const t = Math.min(seats - p.filled, m.cnt[c]); if (t > 0) { m.cnt[c] -= t; p.filled += t; changed = true; for (let i = 0; i < t; i += ROW) m.gap[ownerOf(c, m.colRows[c]++)]++; }
       if (p.filled >= seats) m.parked[k] = null;
     }
-    let n = 0; for (const x of m.cnt) n += x; let gaps = CAP - n;
-    while (gaps > 0) {
-      const a = mergeTurn(m.streams[0].length - m.qi[0], m.streams[1].length - m.qi[1]); if (a < 0 || gaps < ROW) break;
-      for (let l = 0; l < ROW; l++) m.cnt[m.streams[a][m.qi[a]++]]++; gaps -= ROW; changed = true;
-    }
+    const feed = (a, rows) => { const n = Math.min(rows, Math.floor((m.streams[a].length - m.qi[a]) / ROW)); for (let i = 0; i < n * ROW; i++) m.cnt[m.streams[a][m.qi[a]++]]++; if (n) changed = true; return n; };
+    for (const a of [0, 1]) m.gap[a] -= feed(a, m.gap[a]);       // each stream fills the gaps it owns
+    for (const a of [0, 1]) m.gap[a] -= feed(1 - a, m.gap[a]);   // a dry owner's gaps go to the other stream
     if (!changed) return m;
   }
 }
 export function macroTap(m, vid) { mTap(m, vid); }
 export const macroWon = m => mWon(m);
 function mTap(m, vid) { const k = m.parked.indexOf(null); m.inLot[vid] = false; m.parked[k] = { vid, filled: 0 }; settle(m); }
-const mClone = m => ({ level: m.level, inLot: m.inLot.slice(), colors: m.colors, cnt: m.cnt.slice(), streams: m.streams, qi: m.qi.slice(), parked: m.parked.map(p => p && { vid: p.vid, filled: p.filled }) });
+const mClone = m => ({ level: m.level, inLot: m.inLot.slice(), colors: m.colors, cnt: m.cnt.slice(), gap: m.gap.slice(), colRows: m.colRows.slice(), streams: m.streams, qi: m.qi.slice(), parked: m.parked.map(p => p && { vid: p.vid, filled: p.filled }) });
 const mWon = m => m.inLot.every(x => !x) && m.parked.every(p => !p);
 function mKey(m) { let k = ''; for (let i = 0; i < m.inLot.length; i++) k += m.inLot[i] ? '1' : '0'; k += '|' + m.qi[0] + ',' + m.qi[1] + '|'; for (const p of m.parked) k += p ? p.vid + ':' + p.filled + ',' : '-,'; return k; }
 // how useful driving vehicle vid out now looks: riders of its colour available in the ring (and next in the streams)
@@ -304,7 +313,7 @@ export function shuffle(s, seed) {
       else { // exact: the streams will merge in exactly the planned order
         const f = [[], []]; const tot = [Math.floor(rest.length / 2), Math.ceil(rest.length / 2)];
         const half = Math.floor(rest.length / ROW / 2) * ROW; tot[0] = half; tot[1] = rest.length - half;
-        for (let i = 0; i < rest.length; i += ROW) { const a = mergeTurn(tot[0] - f[0].length, tot[1] - f[1].length); f[a].push(...rest.slice(i, i + ROW)); }
+        for (let i = 0; i < rest.length; i += ROW) { const a = mergeTurn(tot[0] - f[0].length, tot[1] - f[1].length, i / ROW); f[a].push(...rest.slice(i, i + ROW)); }
         setStreams(f);
       }
     }
