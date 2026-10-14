@@ -128,7 +128,7 @@ renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
 const PAL = { skyTop: 0x2d5fa8, skyMid: 0x86b9e6, horizon: 0xffd9a8, fog: 0xe8d2b0, sun: 0xffe2b8, grass: '#5fa344', stone: '#a7a39a' };
-scene.fog = new THREE.Fog(PAL.fog, 38, 175);
+scene.fog = new THREE.Fog(PAL.fog, 120, 420); // distant scenery only; the castle stays crisp
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
 const LOOKV = new THREE.Vector3(LOOK.x, LOOK.y, LOOK.z);
 const SUN_DIR = new THREE.Vector3(-0.55, 0.32, -1).normalize();
@@ -367,7 +367,6 @@ function syncAll(g, force) {
     const t = b.translation(), r = b.rotation(); m.position.set(t.x, t.y, t.z); m.quaternion.set(r.x, r.y, r.z, r.w);
     if (!o.lastT) o.lastT = { x: t.x, y: t.y, z: t.z };
     const dx = t.x - o.lastT.x, dy = t.y - o.lastT.y, dz = t.z - o.lastT.z, sp = Math.hypot(dx, dy, dz);
-    if (sp > 0.12) emit(t.x, t.y, t.z, 1, { col: 0xd9d2c6, size: 0.35, life: 0.5, spread: 0.05, up: 0.2, alpha: 0.35, grow: 1.8 });
     o.lastT.x = t.x; o.lastT.y = t.y; o.lastT.z = t.z;
   }
 }
@@ -447,7 +446,8 @@ function updateChunks(dt) {
 }
 
 // ---------- camera director ----------
-const cam = { trauma: 0, intro: 0, introFrom: new THREE.Vector3(), push: 0, finale: 0, t: 0 };
+const ORBIT_TIME = 2.8, ORBIT_SWEEP = Math.PI * 1.25;
+const cam = { orbit: null, trauma: 0, intro: 0, introFrom: new THREE.Vector3(), push: 0, finale: 0, t: 0 };
 function addTrauma(v) { cam.trauma = Math.min(1, cam.trauma + v); }
 let timeScale = 1, slowmo = 0, hitStop = 0;
 
@@ -459,27 +459,24 @@ const hooks = {
     if (gs > 30) SFX.impact(p.m, gs);
     if (gs > 55) {
       const t = posOf(p); if (!t) return;
-      const col = p.m === 'stone' ? 0xe0dbd2 : p.m === 'ice' ? 0xf0fcff : 0xeadcc4;
-      emit(t.x, t.y, t.z, Math.min(5, 1 + (gs / 80) | 0), { col, size: 0.4, life: 0.8, spread: 0.9, up: 0.4, alpha: 0.22, grow: 2 });
-      if (gs > 90) { spawnChunks(t.x, t.y, t.z, 2, p.col || p.c, 2.2, p.m === 'stone' ? 0.1 : 0.07); addTrauma(Math.min(0.25, gs / 900)); }
+            if (gs > 90) { spawnChunks(t.x, t.y, t.z, 2, p.col || p.c, 2.2, p.m === 'stone' ? 0.1 : 0.07); addTrauma(Math.min(0.25, gs / 900)); }
       if (gs > 160 && hitStop <= 0) { hitStop = 0.045; haptic('light'); }
     }
   },
   onShatter(p) {
     SFX.shatter(); const t = posOf(p) || { x: 0, y: 1, z: CENTER_Z };
     spawnChunks(t.x, t.y, t.z, 12, 0xcff4ff, 3.5, 0.08);
-    emit(t.x, t.y, t.z, 10, { col: 0xeafcff, size: 0.25, life: 0.6, spread: 2.2, up: 1, alpha: 0.9, grow: 0.5, gravity: -3 });
+    emit(t.x, t.y, t.z, 10, { col: 0xeafcff, size: 0.2, life: 0.5, spread: 2.2, up: 1, alpha: 0.9, grow: 0, gravity: -3 });
     addTrauma(0.2);
   },
   onRemove() {},
   onOff(p) {
     combo++; comboT = 1.1; updateHud();
-    const t = posOf(p); if (t && t.y > PLATFORM_TOP - 1.2) emit(t.x, PLATFORM_TOP + 0.1, t.z, 3, { col: 0xd9c9a8, size: 0.5, life: 1, spread: 0.6, up: 0.3, alpha: 0.4 });
   },
   onBonus(p) { SFX.bonus(); haptic('medium'); popup('+5 coins', 'gold'); const t = posOf(p); if (t) emit(t.x, t.y, t.z, 16, { col: 0xffd54a, size: 0.18, life: 0.9, spread: 2, up: 1.5, alpha: 1, grow: 0, gravity: -4 }); updateHud(); },
   onFire() { SFX.fire(); updateHud(); },
   onBallRemoved() {},
-  onWin(g) { recordWin(g); setTimeout(() => { if (g === game) showResult(); }, 300); }
+  onWin(g) { recordWin(g); const wait = () => { if (g !== game) return; if (cam.finale < 1) return setTimeout(wait, 100); showResult(); }; setTimeout(wait, 200); }
 };
 function popup(text, cls = '') { const el = document.createElement('div'); el.className = 'popup ' + cls; el.textContent = text; $('popups').appendChild(el); setTimeout(() => el.remove(), 1100); }
 
@@ -493,7 +490,7 @@ function loadLevel(i) {
   for (const c of chunks) c.life = 0; for (const p of parts) p.life = 0;
   $('hud-level').textContent = LEVELS[levelIdx].name;
   $('hud-num').textContent = 'Level ' + (levelIdx + 1);
-  combo = 0; comboT = 0; timeScale = 1; slowmo = 0; cam.finale = 0; recoil = 0; collapsePlayed = false;
+  combo = 0; comboT = 0; timeScale = 1; slowmo = 0; cam.finale = 0; cam.orbit = null; recoil = 0; collapsePlayed = false;
   if (AC) lowpass.frequency.setTargetAtTime(20000, AC.currentTime, 0.05);
   cam.intro = 1; cam.introFrom.set(CAMERA.x + 2.5, CAMERA.y + 3.5, CAMERA.z + 3);
   updateHud();
@@ -621,12 +618,11 @@ function fireAtWorld(p) {
   const o = game.fireAt({ x: p.x, y: p.y, z: p.z }); if (!o) return false;
   const m = new THREE.Mesh(GEO.ball, MAT.ball); m.castShadow = true; m.position.set(MUZZLE.x, MUZZLE.y, MUZZLE.z);
   ballMeshes.set(o, m); pieceRoot.add(m);
-  recoil = 0.35; addTrauma(0.22); cam.push = 1; flash.intensity = 30;
+  recoil = 0.35; addTrauma(0.22); cam.push = 1; flash.intensity = 5;
   // muzzle: flash, smoke and sparks along the barrel direction
   _v.set(p.x - MUZZLE.x, p.y - MUZZLE.y, p.z - MUZZLE.z).normalize();
   const mx = MUZZLE.x + _v.x * 0.5, my = MUZZLE.y + _v.y * 0.5, mz = MUZZLE.z + _v.z * 0.5;
-  emit(mx, my, mz, 3, { col: 0xffd28a, size: 0.7, life: 0.12, spread: 0.2, alpha: 1, grow: 1, gravity: 0 });
-  emit(mx + _v.x * 0.8, my + _v.y * 0.8, mz + _v.z * 0.8, 8, { col: 0xf1ece4, size: 0.35, life: 1.3, spread: 0.5, up: 0.4, alpha: 0.35, grow: 2.5, vx: _v.x * 2, vy: 0, vz: _v.z * 2 });
+  emit(mx, my, mz, 2, { col: 0xffd28a, size: 0.3, life: 0.07, spread: 0.1, alpha: 0.9, grow: 0, gravity: 0 });
   emit(mx, my, mz, 6, { col: 0xffb347, size: 0.08, life: 0.4, spread: 1.5, alpha: 1, grow: 0, gravity: -6, vx: _v.x * 4, vz: _v.z * 4 });
   haptic('medium');
   if (!save.hintSeen) { save.hintSeen = true; persist(); $('hint').classList.add('hidden'); }
@@ -681,8 +677,8 @@ function frame(now) {
   }
   cam.t += rdt;
   // finale slow-motion when the last pieces go
-  if (game && game.phase === 'winning' && !collapsePlayed) { collapsePlayed = true; slowmo = 1.6; SFX.collapse(); addTrauma(0.5); haptic('heavy'); if (AC) lowpass.frequency.setTargetAtTime(900, AC.currentTime, 0.08); }
-  if (slowmo > 0) { slowmo -= rdt; timeScale = slowmo > 0.5 ? 0.3 : 0.3 + (0.5 - slowmo) * 1.4; if (slowmo <= 0) { timeScale = 1; if (AC) lowpass.frequency.setTargetAtTime(20000, AC.currentTime, 0.2); } }
+  if (game && game.phase === 'winning' && !collapsePlayed) { collapsePlayed = true; slowmo = ORBIT_TIME; SFX.collapse(); addTrauma(0.5); haptic('heavy'); if (AC) lowpass.frequency.setTargetAtTime(900, AC.currentTime, 0.08); }
+  if (slowmo > 0) { slowmo -= rdt; timeScale = slowmo > 0.6 ? 0.3 : 0.3 + (0.6 - slowmo) / 0.6 * 0.7; if (slowmo <= 0) { timeScale = 1; if (AC) lowpass.frequency.setTargetAtTime(20000, AC.currentTime, 0.2); } }
   if (hitStop > 0) hitStop -= rdt;
   const dt = rdt * timeScale * (hitStop > 0 ? 0.15 : 1);
   if (game && (mode === 'game' || mode === 'result')) {
@@ -699,7 +695,7 @@ function frame(now) {
   if (comboT > 0) { comboT -= rdt; if (comboT <= 0) { if (combo >= 8 && game && game.phase === 'play') popup(combo >= 20 ? `MEGA SMASH x${combo}` : `SMASH x${combo}`, combo >= 20 ? 'mega' : ''); combo = 0; } }
   updateParticles(dt); updateChunks(dt);
   for (const c of clouds) { if (c.sprite) { c.sprite.position.x += c.speed * rdt; if (c.sprite.position.x > 130) c.sprite.position.x = -130; } else c.isle.position.y = c.y + Math.sin(cam.t * 0.4 + c.isle.userData.bob) * 0.6; }
-  flash.intensity *= Math.exp(-rdt * 22);
+  flash.intensity *= Math.exp(-rdt * 40);
   for (const m of crownMeshes.values()) if (m.visible) m.children[0].material.emissiveIntensity = 0.8 + Math.sin(cam.t * 4) * 0.4;
 
   // cannon
@@ -715,7 +711,18 @@ function frame(now) {
     camPos.copy(BASE); camLook.copy(LOOKV);
     if (cam.intro > 0) { cam.intro = Math.max(0, cam.intro - rdt / 1.1); camPos.lerp(cam.introFrom, ease(cam.intro) * 1); }
     if (cam.push > 0) { cam.push = Math.max(0, cam.push - rdt * 3); camPos.z -= Math.sin(cam.push * Math.PI) * 0.12; }
-    if (game && game.phase !== 'play') { cam.finale = Math.min(1, cam.finale + rdt * 0.35); const f = ease(cam.finale); camPos.z -= f * 1.6; camPos.y += f * 0.7; camPos.x += Math.sin(cam.t * 0.3) * f * 0.6; }
+    if (game && game.phase !== 'play') {
+      // cinematic win orbit: clockwise (seen from above) ~225 deg sweep around the collapse, ~2.8 s real time
+      if (!cam.orbit) {
+        const c = new THREE.Vector3(0, 1.1, CENTER_Z).lerp(aimTarget, 0.35); c.y = clamp(c.y, 0.8, 2.2);
+        cam.orbit = { c, a0: Math.atan2(BASE.x - c.x, BASE.z - c.z), r: 8.2, h: c.y + 2.6 };
+      }
+      const o = cam.orbit; cam.finale = Math.min(1, cam.finale + rdt / ORBIT_TIME);
+      const k = cam.finale, e = k * k * (3 - 2 * k), a = o.a0 - e * ORBIT_SWEEP;
+      _v.set(o.c.x + Math.sin(a) * o.r, o.h, o.c.z + Math.cos(a) * o.r);
+      const blend = ease(Math.min(1, k * 3.5));
+      camPos.lerp(_v, blend); camLook.lerp(o.c, blend);
+    }
     camPos.y += Math.sin(cam.t * 0.9) * 0.012;
   }
   if (cam.trauma > 0) {
