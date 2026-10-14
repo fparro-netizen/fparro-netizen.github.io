@@ -1,6 +1,6 @@
 /* Castle Crash service worker: cache-first offline play. Bump CACHE on every release. */
 var PREFIX = 'castle-crash-';
-var CACHE = PREFIX + 'stack-v2';
+var CACHE = PREFIX + 'pro-v3';
 var ASSETS = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/game.js', 'js/core.js', 'js/levels.js',
   'js/lib/three.module.js', 'js/lib/rapier.js', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', function (e) {

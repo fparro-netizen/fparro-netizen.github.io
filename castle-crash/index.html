@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Castle Crash">
-<meta name="theme-color" content="#1d2b53">
+<meta name="theme-color" content="#1b2440">
 <meta name="description" content="Castle Crash: tap to fire and smash towering stacks off a floating island. A first-person physics puzzle game.">
 <title>Castle Crash</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -15,56 +15,110 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<div id="safe-probe"></div>
+<body data-mode="loading">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></symbol>
+  <symbol id="i-restart" viewBox="0 0 24 24"><path d="M12 5a7 7 0 1 1-6.6 4.7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M4 4v6h6z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10-6.5a1 1 0 0 0 0-1.7l-10-6.5A1 1 0 0 0 8 5.5z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 17V5l11-2v12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="6.5" cy="17.5" r="3"/><circle cx="17.5" cy="15.5" r="3"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></symbol>
+  <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="#f5b316"/><circle cx="12" cy="12" r="7" fill="#ffd54a"/><path d="M10 8h4l-1 8h-2z" fill="#e09a00"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="#ffc928"/><rect x="5" y="17" width="14" height="3" rx="1" fill="#e0a000"/></symbol>
+  <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#2a2f3b"/><circle cx="9.5" cy="9.5" r="2.5" fill="#6d7488"/></symbol>
+</svg>
 <canvas id="game"></canvas>
+<div id="vignette"></div>
 <div id="cross" class="hidden"><i></i></div>
 <div id="popups"></div>
+<label id="haptic-wrap" aria-hidden="true"><input type="checkbox" switch id="haptic-in"><span id="haptic"></span></label>
 
 <div id="hud" class="hidden">
-  <button id="btn-menu" class="hbtn" aria-label="Levels">&#9776;</button>
+  <button id="btn-menu" class="hbtn" aria-label="Pause"><svg><use href="#i-pause"/></svg></button>
   <div id="hud-mid">
-    <div id="hud-level">Level 1</div>
-    <div id="hud-shots">Shots 0</div>
+    <div id="hud-num">Level 1</div>
+    <div id="hud-level">Brick Wall</div>
   </div>
-  <button id="btn-restart" class="hbtn" aria-label="Restart">&#8635;</button>
-  <button id="btn-sound" class="hbtn" aria-label="Sound">&#128266;</button>
+  <button id="btn-restart" class="hbtn" aria-label="Restart"><svg><use href="#i-restart"/></svg></button>
 </div>
-<div id="progress" class="hidden"><div id="bar"><div id="bar-fill"></div></div><div id="bar-row"><span id="bar-text">0%</span><span id="hud-crowns"></span></div></div>
-<div id="hint" class="hidden">Tap to fire. Knock every piece off the island! Hold and drag to aim.</div>
+<div id="progress" class="hidden">
+  <div id="bar"><div id="bar-fill"></div><span id="bar-text">0% of 100%</span></div>
+</div>
+<div id="hud-bottom" class="hidden">
+  <div class="chip"><svg><use href="#i-ball"/></svg><b id="hud-shots">0</b><span id="hud-par">3&#9733; in 7</span></div>
+  <div class="chip" id="chip-crowns"><svg><use href="#i-crown"/></svg><b id="hud-crowns">0/1</b></div>
+</div>
+<div id="hint" class="hidden"><span class="finger"></span>Tap to fire. Hold and drag to aim.<br>Knock every piece off the island!</div>
+<div id="wipe"></div>
 
-<div id="title" class="screen">
-  <div class="logo"><span>CASTLE</span><span>CRASH</span></div>
-  <div class="tag">Topple the towers. Claim the crowns.</div>
-  <button id="btn-play" class="big">Play</button>
-  <button id="btn-levels" class="big alt">Levels</button>
-  <div class="coins-line">&#129689; <span class="coins">0</span></div>
+<div id="title" class="screen hidden">
+  <div class="title-top">
+    <div class="pill"><svg><use href="#i-coin"/></svg><span class="coins">0</span></div>
+    <div class="pill"><svg class="gold"><use href="#i-star"/></svg><span id="title-stars">0</span></div>
+  </div>
+  <div class="logo">
+    <div class="crest"><svg><use href="#i-crown"/></svg></div>
+    <span class="l1">CASTLE</span><span class="l2">CRASH</span>
+    <div class="tag">Topple the towers. Claim the crowns.</div>
+  </div>
+  <div class="title-actions">
+    <button id="btn-play" class="btn primary big"><svg><use href="#i-play"/></svg>Play</button>
+    <button id="btn-levels" class="btn secondary"><svg><use href="#i-grid"/></svg>Levels</button>
+    <div class="toggles">
+      <button id="btn-sound" class="tbtn t-sound" aria-label="Sound"><svg><use href="#i-sound"/></svg></button>
+      <button class="tbtn t-music" aria-label="Music"><svg><use href="#i-music"/></svg></button>
+    </div>
+  </div>
 </div>
 
 <div id="levels" class="screen hidden">
   <div class="lv-head">
-    <button id="btn-back" class="hbtn" aria-label="Back">&#8592;</button>
+    <button id="btn-back" class="hbtn" aria-label="Back"><svg><use href="#i-back"/></svg></button>
     <div class="lv-title">Choose a Level</div>
-    <div class="lv-coins">&#129689; <span class="coins">0</span></div>
+    <div class="pill small"><svg><use href="#i-coin"/></svg><span class="coins">0</span></div>
   </div>
-  <div class="lv-stars">&#9733; <span id="star-total">0</span></div>
+  <div class="lv-stars"><svg class="gold"><use href="#i-star"/></svg><span id="star-total">0</span><div class="sbar"><div id="star-fill"></div></div></div>
   <div id="lv-grid"></div>
 </div>
 
-<div id="result" class="screen dim hidden">
-  <div class="card">
-    <div id="res-title">Castle Cleared!</div>
-    <div id="res-stars"><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span></div>
-    <div id="res-score"></div>
-    <div id="res-coins"></div>
-    <div class="row">
-      <button id="res-levels" class="mid alt" aria-label="Levels">&#9776;</button>
-      <button id="res-retry" class="mid alt" aria-label="Replay">&#8635;</button>
-      <button id="res-next" class="mid">Next &#9654;</button>
+<div id="pause" class="screen dim hidden">
+  <div class="card sheet">
+    <div class="card-title">Paused</div>
+    <button id="p-resume" class="btn primary"><svg><use href="#i-play"/></svg>Resume</button>
+    <button id="p-restart" class="btn secondary"><svg><use href="#i-restart"/></svg>Restart</button>
+    <button id="p-levels" class="btn secondary"><svg><use href="#i-grid"/></svg>Levels</button>
+    <button id="p-home" class="btn ghost"><svg><use href="#i-home"/></svg>Title</button>
+    <div class="toggles">
+      <button class="tbtn t-sound" aria-label="Sound"><svg><use href="#i-sound"/></svg></button>
+      <button class="tbtn t-music" aria-label="Music"><svg><use href="#i-music"/></svg></button>
     </div>
   </div>
 </div>
-<div id="loading">Loading…</div>
+
+<div id="result" class="screen dim hidden">
+  <div id="confetti"></div>
+  <div class="card">
+    <div class="ribbon"><span id="res-title">Castle Cleared!</span></div>
+    <div id="res-level">Level 1</div>
+    <div id="res-stars"><span><svg><use href="#i-star"/></svg></span><span><svg><use href="#i-star"/></svg></span><span><svg><use href="#i-star"/></svg></span></div>
+    <div id="res-best" class="hidden">New best!</div>
+    <div class="stats">
+      <div><small>Shots</small><b id="res-shots">0</b></div>
+      <div><small>3&#9733; par</small><b id="res-par">0</b></div>
+      <div id="res-crowns-wrap"><small>Crowns</small><b id="res-crowns">0/1</b></div>
+      <div><small>Coins</small><b class="coin-b"><svg><use href="#i-coin"/></svg><span id="res-coins">+0</span></b></div>
+    </div>
+    <div class="row">
+      <button id="res-levels" class="btn secondary sq" aria-label="Levels"><svg><use href="#i-grid"/></svg></button>
+      <button id="res-retry" class="btn secondary sq" aria-label="Replay"><svg><use href="#i-restart"/></svg></button>
+      <button id="res-next" class="btn primary grow">Next<svg><use href="#i-play"/></svg></button>
+    </div>
+  </div>
+</div>
+<div id="loading"><div class="ld-logo">CASTLE CRASH</div><div class="ld-bar"><i></i></div></div>
 <noscript>Castle Crash needs JavaScript.</noscript>
 <script type="module" src="js/game.js"></script>
 </body>
