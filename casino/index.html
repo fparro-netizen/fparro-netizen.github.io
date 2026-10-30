@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gilded Ace">
+<meta name="theme-color" content="#08120d">
+<meta name="description" content="The Gilded Ace: blackjack, Texas Hold'em, roulette, slots, video poker, baccarat and craps. Plays fully offline.">
+<title>Gilded Ace Casino</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-screen="lobby">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><path d="M9.2 9a3 3 0 1 1 4.3 2.7c-.9.5-1.5 1.2-1.5 2.3v.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="18.3" r="1.5"/></symbol>
+</svg>
+<div id="app">
+  <header id="topbar">
+    <button class="tb" id="btn-back" aria-label="Lobby" style="color:var(--gold2)"><svg><use href="#i-back"/></svg></button>
+    <div id="title"></div>
+    <button class="tb" id="btn-help" aria-label="Rules" style="color:var(--gold2)"><svg><use href="#i-help"/></svg></button>
+    <div id="bank"><span id="bank-amt">$0</span></div>
+  </header>
+  <main id="view"></main>
+</div>
+<div id="fx"></div>
+<label id="haptic-wrap" aria-hidden="true"><input type="checkbox" switch><span></span></label>
+<script src="js/core.js"></script>
+<script src="js/blackjack.js"></script>
+<script src="js/holdem.js"></script>
+<script src="js/roulette.js"></script>
+<script src="js/slots.js"></script>
+<script src="js/videopoker.js"></script>
+<script src="js/baccarat.js"></script>
+<script src="js/craps.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
