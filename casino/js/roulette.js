@@ -26,14 +26,7 @@
   Games.add({
     id: 'roulette', name: 'Roulette', tag: 'European single zero',
     art: '<div class="mini-wheel"><i></i></div>',
-    help: `<p>Place chips, then spin. European wheel with a single zero.</p>
-      <ul><li><b>Straight up</b>: tap a number. Pays 35 to 1.</li>
-      <li><b>Split</b>: tap the line between two numbers. 17 to 1.</li>
-      <li><b>Corner</b>: tap where four numbers meet. 8 to 1.</li>
-      <li><b>Street</b>: tap the left edge of a row. 11 to 1. Tap the left edge on a line between rows for a <b>six line</b>, 5 to 1.</li>
-      <li>Tap between zero and the first row for a zero split or trio.</li>
-      <li><b>Dozens</b> and <b>columns</b> (2:1) pay 2 to 1. Red, black, odd, even, 1 to 18 and 19 to 36 pay even money.</li>
-      <li>Long-press any bet to remove it. Table limit ${fmt(MAX)} per spin.</li></ul>`,
+    help: GUIDES.roulette,
     mount(v, sess) {
       S = { sess, bets: new Map(), history: [], last: null, undo: [], spinning: false, hist: Store.getGame('roulette-hist') || [] };
       v.innerHTML = `

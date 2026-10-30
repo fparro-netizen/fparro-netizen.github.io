@@ -33,12 +33,7 @@
   Games.add({
     id: 'holdem', name: 'Texas Hold\'em', tag: 'Tournament vs. sharp bots',
     art: `<div class="mini-cards"><div class="mc">A<i>${SUIT[3]}</i></div><div class="mc">A<i>${SUIT[0]}</i></div></div><div class="mini-chips"><i></i><i></i><i></i></div>`,
-    help: `<p>No-limit Texas Hold'em sit-and-go tournament. Everyone buys in for ${fmt(BUYIN)} and starts with ${STACK.toLocaleString()} chips. Blinds go up every ${PER_LEVEL} hands. Last player with chips wins.</p>
-      <ul><li><b>Prizes:</b> 5 or 6 players pay 50% / 30% / 20% of the prize pool. 3 or 4 players pay 65% / 35%. Heads-up is winner take all.</li>
-      <li><b>Pass and play:</b> seat two or more players from this phone. When it is your turn a privacy screen asks the others to look away.</li>
-      <li>Hand ranks, best first: Royal Flush, Straight Flush, Four of a Kind, Full House, Flush, Straight, Three of a Kind, Two Pair, Pair, High Card.</li>
-      <li>Your tournament is saved after every hand, so you can leave and resume.</li></ul>
-      <p>Each computer player runs hundreds of simulated deals to estimate its odds, then plays its own style: some are tight, some bluff, one calls far too much.</p>`,
+    help: GUIDES.holdem,
     mount(v, sess) { S = { sess, v }; setup(); },
     unmount() { S = null; },
   });
@@ -536,8 +531,9 @@
   // ---------- human turn ----------
   async function curtain(name) {
     const d = deferred();
-    const c = h('div', 'curtain', `<div class="cin"><div class="cav">${esc(name.slice(0, 1))}</div><div class="ct">${esc(name)}, your turn</div><div class="cs">Everyone else look away</div><button class="btn gold big">Show my cards</button></div>`);
-    c.querySelector('button').addEventListener('click', () => { Sound.unlock(); Sound.play('tap'); c.remove(); d.resolve(); });
+    const c = h('div', 'curtain', `<div class="cin"><div class="cav">${esc(name.slice(0, 1))}</div><div class="ct">${esc(name)}, your turn</div><div class="cs">Everyone else look away</div><button class="btn gold big">Show my cards</button><button class="cleave">Leave table (progress is saved)</button></div>`);
+    c.querySelector('.btn').addEventListener('click', () => { Sound.unlock(); Sound.play('tap'); c.remove(); d.resolve(); });
+    c.querySelector('.cleave').addEventListener('click', () => { Sound.play('tap'); c.remove(); App.lobby(); });
     $('#fx').appendChild(c);
     Sound.play('alert'); haptic('medium');
     await d;

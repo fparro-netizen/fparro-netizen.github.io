@@ -1,6 +1,6 @@
 'use strict';
 /* Gilded Ace Casino: lobby, players, settings and routing. */
-const CACHE_NAME = 'gilded-ace-v1', CACHE_COUNT = 16; // keep in step with sw.js
+const CACHE_NAME = 'gilded-ace-v2', CACHE_COUNT = 17; // keep in step with sw.js
 
 const App = {
   game: null, sess: null,
@@ -74,6 +74,7 @@ const App = {
     toggle('fast', 'Fast dealing', 'Speeds up every animation');
     toggle('hints', 'Strategy coach', 'Blackjack basic-strategy tips');
     const btns = h('div', 'srow2');
+    btns.appendChild(UI.button('How to play', 'ghost', () => this.guides()));
     btns.appendChild(UI.button('Cashier', 'ghost', () => this.cashier()));
     btns.appendChild(UI.button('Players', 'ghost', () => this.players()));
     btns.appendChild(UI.button('Install help', 'ghost', () => this.installHelp()));
@@ -201,6 +202,9 @@ const App = {
     this.game = g;
     this.sess = new Session();
     g.mount(v, this.sess);
+    // first visit to a game on this phone: show how to play
+    const seen = Store.d.seen = Store.d.seen || {};
+    if (!seen[id]) { seen[id] = true; Store.save(); setTimeout(() => { if (this.game === g) this.help(true); }, 350); }
   },
   leave() {
     if (this.game && this.game.canLeave && !this.game.canLeave()) return;
@@ -212,9 +216,24 @@ const App = {
     this.game = null; this.sess = null;
     $$('#fx > *').forEach(e => { if (!e.classList.contains('modal-back')) e.remove(); });
   },
-  help() {
-    if (!this.game) return;
-    UI.modal({ title: this.game.name, body: `<div class="rules">${this.game.help}</div>`, cls: 'wide' });
+  help(first, g) {
+    g = g || this.game;
+    if (!g) return;
+    UI.modal({
+      title: 'How to play ' + g.name,
+      body: `<div class="rules">${first ? '<p class="g-first">New to ' + g.name + '? Here is everything you need. Tap the <b>?</b> button at the top any time to see this again.</p>' : ''}${g.help}</div>`,
+      cls: 'wide', buttons: [{ label: first ? 'Let\'s play' : 'Got it', value: true, cls: 'gold' }],
+    });
+  },
+  guides() {
+    const body = h('div', 'glist');
+    let close;
+    Games.list.forEach(g => {
+      const r = h('button', 'grow', `<span class="gn">${g.name}</span><span class="gt">${g.tag}</span><span class="ga">&rsaquo;</span>`);
+      r.addEventListener('click', () => { Sound.play('tap'); close(true); setTimeout(() => this.help(false, g), 230); });
+      body.appendChild(r);
+    });
+    UI.modal({ title: 'How to play', body: '<p class="lead">Rules, payouts and beginner tips for every game.</p>', buttons: [{ label: 'Close', value: true }], onOpen: (m, c) => { close = c; m.querySelector('.mbody').appendChild(body); } });
   },
 };
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

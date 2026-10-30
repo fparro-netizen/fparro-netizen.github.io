@@ -25,11 +25,7 @@
   Games.add({
     id: 'videopoker', name: 'Video Poker', tag: 'Jacks or Better 9/6',
     art: '<div class="mini-vp"><b>JACKS</b><span>OR BETTER</span></div>',
-    help: `<p>Five-card draw against the paytable. Deal, tap the cards you want to keep (they show <b>HELD</b>), then draw.</p>
-      <ul><li>A pair of jacks or better pays. Max bet (5 credits) unlocks the 4,000-credit royal flush.</li>
-      <li>This is the full-pay 9/6 table: 99.5% payback with perfect play.</li>
-      <li>Tips: always keep a paying hand, except break up anything for four to a royal. Keep any four to a flush. Keep a low pair over unsuited high cards.</li>
-      <li>Change the credit size with the coin button: $1, $5 or $25 per credit.</li></ul>`,
+    help: GUIDES.videopoker,
     mount(v, sess) {
       S = { sess, coins: 5, denom: 5, phase: 'idle', hand: [], held: [false, false, false, false, false], deck: null, busy: false };
       v.innerHTML = `

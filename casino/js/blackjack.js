@@ -55,15 +55,7 @@
   Games.add({
     id: 'blackjack', name: 'Blackjack', tag: 'Beat the dealer to 21',
     art: `<div class="mini-cards"><div class="mc">A<i>${SUIT[0]}</i></div><div class="mc red">K<i>${SUIT[1]}</i></div></div>`,
-    help: `<p>Get closer to 21 than the dealer without going over. Face cards count 10, aces count 1 or 11.</p>
-      <ul><li><b>Blackjack</b> (ace plus a ten card) pays <b>3 to 2</b>.</li>
-      <li>Dealer stands on all 17s and checks for blackjack under an ace or ten.</li>
-      <li><b>Double</b> on any first two cards (one more card, bet doubled).</li>
-      <li><b>Split</b> pairs up to four hands. Split aces get one card each.</li>
-      <li><b>Insurance</b> is offered against a dealer ace and pays 2 to 1.</li>
-      <li>Six-deck shoe, reshuffled at about 75%. Table limits ${fmt(MIN)} to ${fmt(MAX)}.</li></ul>
-      <p>Turn on <b>Strategy coach</b> in the lobby settings to see the mathematically best play on every hand.</p>`,
-
+    help: GUIDES.blackjack,
     mount(v, sess) {
       S = { sess, shoe: newShoe(DECKS), bet: 0, last: 0, phase: 'bet', hands: [], dealer: [], active: -1 };
       v.innerHTML = `

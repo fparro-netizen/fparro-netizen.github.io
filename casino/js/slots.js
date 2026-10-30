@@ -41,10 +41,8 @@
   Games.add({
     id: 'slots', name: 'Crown Jewels', tag: '5-reel slots, 10 lines',
     art: '<div class="mini-slot"><span>7</span><span>7</span><span>7</span></div>',
-    help: `<p>Five reels, ten paylines. Wins pay left to right on consecutive reels, multiplied by the line bet (total bet divided by 10). The crown is <b>wild</b> and stands in for every symbol.</p>
-      <table class="pt"><tr><th></th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
-      ${KEYS.slice().reverse().map(k => `<tr><td class="ps">${SYM[k].html}</td>${SYM[k].pay.map(p => `<td>${p || ''}</td>`).join('')}</tr>`).join('')}</table>
-      <p>Payback is about 97% over the long run. Tap <b>Auto</b> to keep spinning until you tap it again.</p>`,
+    help: GUIDES.slots.replace('{{PAYTABLE}}', `<table class="pt"><tr><th></th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+      ${KEYS.slice().reverse().map(k => `<tr><td class="ps">${SYM[k].html}</td>${SYM[k].pay.map(p => `<td>${p || ''}</td>`).join('')}</tr>`).join('')}</table>`),
     mount(v, sess) {
       S = { sess, bet: 20, grid: null, busy: false, auto: false, cycle: null };
       v.innerHTML = `

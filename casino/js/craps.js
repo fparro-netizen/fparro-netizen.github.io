@@ -12,20 +12,13 @@
   Games.add({
     id: 'craps', name: 'Craps', tag: 'Roll the bones',
     art: '<div class="mini-dice"><i class="d5"></i><i class="d2"></i></div>',
-    help: `<p>The first roll is the <b>come-out</b>. 7 or 11 wins on the <b>Pass Line</b>, 2, 3 or 12 loses. Any other number becomes the <b>point</b>. Roll the point again before a 7 to win.</p>
-      <ul><li><b>Don't Pass</b> is the opposite: wins on 2 or 3, pushes on 12, then wins if a 7 comes before the point.</li>
-      <li><b>Odds</b>: once a point is set, back your pass line bet at true odds (no house edge): 2 to 1 on 4 and 10, 3 to 2 on 5 and 9, 6 to 5 on 6 and 8. Up to 3x, 4x, 5x.</li>
-      <li><b>Place bets</b> on 4, 5, 6, 8, 9, 10 win whenever that number rolls before a 7: 9 to 5, 7 to 5, 7 to 6. They are off on the come-out roll.</li>
-      <li><b>Field</b> (one roll): 3, 4, 9, 10, 11 pay even money, 2 pays double, 12 pays triple.</li>
-      <li><b>Hard 6 / Hard 8</b> pay 9 to 1 if rolled as a pair before a 7 or the easy way. Off on the come-out.</li>
-      <li>One-roll props: <b>Any 7</b> 4 to 1, <b>Any Craps</b> (2, 3, 12) 7 to 1, <b>Yo</b> (11) 15 to 1.</li>
-      <li>Winning bets stay up for the next roll. Long-press a bet to take it down.</li></ul>`,
+    help: GUIDES.craps,
     mount(v, sess) {
       S = { sess, point: 0, bets: {}, busy: false, rolls: [] };
       v.innerHTML = `
         <div class="felt cr">
           <div class="cr-tray"><div class="dice" id="cr-dice"></div><div class="puck off" id="cr-puck">OFF</div><div class="cr-last" id="cr-last"></div></div>
-          <div class="cr-say" id="cr-say">Come-out roll: bet the Pass Line</div>
+          <div class="cr-say" id="cr-say"></div>
           <div class="cr-layout">
             <div class="cr-places">${[4, 5, 6, 8, 9, 10].map(n => `<div class="cb place" data-k="p${n}"><b>${n === 6 ? 'SIX' : n === 9 ? 'NINE' : n}</b><small>${PLACE[n][0]}:${PLACE[n][1]}</small><div class="cc"></div></div>`).join('')}</div>
             <div class="cb field" data-k="field"><b>FIELD</b><small>2 pays double &#183; 3 &#183; 4 &#183; 9 &#183; 10 &#183; 11 &#183; 12 pays triple</small><div class="cc"></div></div>
@@ -82,7 +75,7 @@
     Bank.take('craps', amt);
     S.bets[k] = (S.bets[k] || 0) + amt;
     Sound.play('chip'); haptic();
-    drawBets(); buttons();
+    drawBets(); buttons(); $('#cr-say').textContent = hint();
   }
   function take(k) {
     if (!S || S.busy || !S.bets[k]) return;
@@ -110,9 +103,17 @@
     $$('.cr .place').forEach(b => b.classList.toggle('point', S.point && b.dataset.k === 'p' + S.point));
     $('.cr .odds').classList.toggle('dead', !S.point);
     $('#cr-oddsx').textContent = S.point ? 'up to ' + ODDS_X[S.point] + 'x pays ' + ODDS[S.point].join(':') : 'after point';
-    $('#cr-say').textContent = S.point ? 'The point is ' + S.point + '. Roll it again before a 7.' : 'Come-out roll';
+    $('#cr-say').textContent = hint();
     const l = $('#cr-last'); l.innerHTML = '';
     S.rolls.slice(0, 10).forEach(r => l.appendChild(h('span', r === 7 ? 'seven' : '', String(r))));
+  }
+  // one line that always says what to do next
+  function hint() {
+    const B = S.bets;
+    if (!S.point) return B.pass || B.dp ? 'Come-out roll: 7 or 11 wins, 2, 3 or 12 loses. Tap Roll dice.' : 'Come-out roll: tap a chip, then PASS LINE, then Roll dice.';
+    const p = S.point;
+    if (B.pass && !B.odds) return 'Point is ' + p + '. Roll a ' + p + ' before a 7 to win. Tip: add ODDS (no house edge).';
+    return 'Point is ' + p + '. Roll a ' + p + ' before a 7 to win. Other numbers: keep rolling.';
   }
   function buttons() {
     const b = $('#cr-btns'); if (!b) return;

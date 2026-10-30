@@ -17,12 +17,7 @@
   Games.add({
     id: 'baccarat', name: 'Baccarat', tag: 'Punto Banco',
     art: '<div class="mini-bac"><b>9</b></div>',
-    help: `<p>Bet on which hand finishes closest to 9: <b>Player</b> or <b>Banker</b>. Tens and face cards count zero, aces count one, and only the last digit of the total counts (7 + 6 = 3).</p>
-      <ul><li>The dealer follows fixed drawing rules; you make no decisions after betting.</li>
-      <li><b>Player</b> pays 1 to 1. <b>Banker</b> pays 0.95 to 1 (5% commission). Both push on a tie.</li>
-      <li><b>Tie</b> pays 8 to 1. <b>Player Pair</b> or <b>Banker Pair</b> (first two cards match in rank) pay 11 to 1.</li>
-      <li>The bead road on the right tracks the shoe: blue Player, red Banker, green Tie.</li>
-      <li>Eight-deck shoe. Table limit ${fmt(MAX)} per bet.</li></ul>`,
+    help: GUIDES.baccarat,
     mount(v, sess) {
       S = { sess, shoe: newShoe(DECKS), bets: {}, last: null, busy: false, road: Store.getGame('bac-road') || [] };
       v.innerHTML = `
@@ -32,7 +27,7 @@
             <div class="bh p"><div class="bl">PLAYER</div><div class="hand" id="bc-p"></div><div class="bt" id="bc-pt"></div></div>
             <div class="bh b"><div class="bl">BANKER</div><div class="hand" id="bc-b"></div><div class="bt" id="bc-bt"></div></div>
           </div>
-          <div class="bc-say" id="bc-say">Place your bets</div>
+          <div class="bc-say" id="bc-say">Bet on Player, Banker or Tie, then tap Deal. Closest to 9 wins.</div>
           <div class="bc-bets" id="bc-bets"></div>
           <div class="road" id="bc-road"></div>
         </div>
@@ -176,6 +171,6 @@
     if (!S || S.sess !== sess) return;
     S.busy = false;
     drawBets(); S.rack.show(true); buttons();
-    say('Place your bets');
+    say('Bet on Player, Banker or Tie, then tap Deal. Closest to 9 wins.');
   }
 })();
